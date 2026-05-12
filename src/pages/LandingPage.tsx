@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { ACCENT, BG, BORDER, TEXT, MUTED, SURFACE } from "../constants/theme";
+import { ACCENT, BG, BORDER, TEXT, MUTED } from "../constants/theme";
 
 function QRMark() {
   return (
