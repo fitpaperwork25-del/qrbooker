@@ -36,9 +36,7 @@ export default function LandingPage() {
   function handleWaitlist(e: React.FormEvent) {
     e.preventDefault();
     if (!email) return;
-    console.log("Waitlist signup:", email);
-    setSubmitted(true);
-    setEmail("");
+    window.location.href = `https://tally.so/r/EkvVa4?email=${encodeURIComponent(email)}`;
   }
 
   return (
