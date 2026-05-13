@@ -81,16 +81,16 @@ export default function ScanPage() {
     setPlacing(true);
     setError(null);
     try {
-      const { data: order, error: orderErr } = await supabase
+      const orderId = crypto.randomUUID();
+
+      const { error: orderErr } = await supabase
         .from('orders')
-        .insert({ business_id: bizId, location_id: locationId, total: cartTotal, status: 'new' })
-        .select()
-        .single();
+        .insert({ id: orderId, business_id: bizId, location_id: locationId, total: cartTotal, status: 'new' });
 
       if (orderErr) throw orderErr;
 
       const orderItemsPayload = cartItems.map(i => ({
-        order_id: order.id,
+        order_id: orderId,
         menu_item_id: i.id,
         quantity: i.qty,
         unit_price: i.price,
@@ -99,7 +99,7 @@ export default function ScanPage() {
       const { error: itemsErr } = await supabase.from('order_items').insert(orderItemsPayload);
       if (itemsErr) throw itemsErr;
 
-      setOrderId(order.id);
+      setOrderId(orderId);
       setOrderPlaced(true);
       setCart({});
     } catch (err) {
