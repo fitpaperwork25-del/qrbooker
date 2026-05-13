@@ -4,6 +4,7 @@ import StaffGuard from "./components/StaffGuard";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
+import DashboardPage from "./pages/DashboardPage";
 import StaffLoginPage from "./pages/StaffLoginPage";
 
 // Placeholders — replace with real pages as they are built
@@ -37,7 +38,7 @@ export default function App() {
         path="/dashboard"
         element={
           <AuthGuard>
-            <Placeholder name="DashboardPage" />
+            <DashboardPage />
           </AuthGuard>
         }
       />
