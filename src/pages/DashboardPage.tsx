@@ -20,9 +20,13 @@ type Order     = { id: string; status: string; total: number; created_at: string
 type OrderItem = { id: string; name: string; quantity: number; unit_price: number };
 type Category  = { id: string; name: string; display_order: number };
 type MenuItem  = { id: string; category_id: string; name: string; price: number; description: string | null; is_available: boolean };
-type Expense   = { id: string; amount: number; category: string; description: string | null; expense_date: string };
+type Expense       = { id: string; amount: number; category: string; description: string | null; expense_date: string };
+type ManualRevenue = { id: string; amount: number; category: string; description: string | null; revenue_date: string };
 
-const EMPTY_EXPENSE = { category: "", amount: "", description: "", expense_date: new Date().toISOString().slice(0, 10) };
+const TODAY = new Date().toISOString().slice(0, 10);
+const EMPTY_EXPENSE = { category: "", amount: "", description: "", expense_date: TODAY };
+const EMPTY_REVENUE = { category: "Dine-in", amount: "", description: "", revenue_date: TODAY };
+const REVENUE_CATEGORIES = ["Dine-in", "Takeout", "Catering", "Other"] as const;
 
 const ORDER_STATUS_COLOR: Record<string, string> = {
   new:       "#E8C547",
@@ -106,12 +110,18 @@ export default function DashboardPage() {
   const [orderItemsCache, setOrderItemsCache] = useState<Record<string, OrderItem[]>>({});
 
   // Financials
-  const [doneOrders, setDoneOrders]       = useState<Order[]>([]);
-  const [expenses, setExpenses]           = useState<Expense[]>([]);
-  const [addingExpense, setAddingExpense] = useState(false);
-  const [expenseForm, setExpenseForm]     = useState(EMPTY_EXPENSE);
-  const [expenseError, setExpenseError]   = useState("");
-  const [expenseSaving, setExpenseSaving] = useState(false);
+  const [doneOrders, setDoneOrders]           = useState<Order[]>([]);
+  const [expenses, setExpenses]               = useState<Expense[]>([]);
+  const [manualRevenue, setManualRevenue]     = useState<ManualRevenue[]>([]);
+  const [addingExpense, setAddingExpense]     = useState(false);
+  const [expenseForm, setExpenseForm]         = useState(EMPTY_EXPENSE);
+  const [expenseError, setExpenseError]       = useState("");
+  const [expenseSaving, setExpenseSaving]     = useState(false);
+  const [addingRevenue, setAddingRevenue]     = useState(false);
+  const [revenueForm, setRevenueForm]         = useState(EMPTY_REVENUE);
+  const [revenueError, setRevenueError]       = useState("");
+  const [revenueSaving, setRevenueSaving]     = useState(false);
+  const [noRevenueTable, setNoRevenueTable]   = useState(false);
 
   useEffect(() => {
     if (!session?.user.id) return;
@@ -147,15 +157,22 @@ export default function DashboardPage() {
       }
 
       const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-      const [doneRes, expRes] = await Promise.all([
+      const [doneRes, expRes, revRes] = await Promise.all([
         supabase.from("orders").select("id, status, total, created_at")
           .eq("business_id", biz.id).eq("status", "done")
           .gte("created_at", thirtyDaysAgo).order("created_at", { ascending: false }),
         supabase.from("business_expenses").select("id, amount, category, description, expense_date")
           .eq("business_id", biz.id).order("expense_date", { ascending: false }),
+        supabase.from("manual_revenue").select("id, amount, category, description, revenue_date")
+          .eq("business_id", biz.id).order("revenue_date", { ascending: false }),
       ]);
       setDoneOrders((doneRes.data as Order[]) ?? []);
       setExpenses((expRes.data as Expense[]) ?? []);
+      if (revRes.error?.code === "42P01") {
+        setNoRevenueTable(true); // table doesn't exist yet — show migration prompt
+      } else {
+        setManualRevenue((revRes.data as ManualRevenue[]) ?? []);
+      }
     }
 
     setLoading(false);
@@ -251,6 +268,29 @@ export default function DashboardPage() {
   async function updateOrderStatus(orderId: string, newStatus: string) {
     const { error } = await supabase.from("orders").update({ status: newStatus }).eq("id", orderId);
     if (!error) setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: newStatus } : o));
+  }
+
+  async function addManualRevenue(e: React.FormEvent) {
+    e.preventDefault();
+    if (!business || !revenueForm.amount) return;
+    setRevenueError("");
+    setRevenueSaving(true);
+    const { data, error } = await supabase
+      .from("manual_revenue")
+      .insert({
+        business_id:  business.id,
+        amount:       parseFloat(revenueForm.amount),
+        category:     revenueForm.category,
+        description:  revenueForm.description.trim() || null,
+        revenue_date: revenueForm.revenue_date,
+      })
+      .select("id, amount, category, description, revenue_date")
+      .single();
+    if (error) { setRevenueError(error.message); setRevenueSaving(false); return; }
+    setManualRevenue((prev) => [data as ManualRevenue, ...prev]);
+    setRevenueForm(EMPTY_REVENUE);
+    setAddingRevenue(false);
+    setRevenueSaving(false);
   }
 
   async function addExpense(e: React.FormEvent) {
@@ -699,12 +739,14 @@ export default function DashboardPage() {
           )}
           {/* Financials tab */}
           {tab === "financials" && (() => {
-            const totalRevenue  = doneOrders.reduce((s, o) => s + Number(o.total), 0);
+            const orderRevenue  = doneOrders.reduce((s, o) => s + Number(o.total), 0);
+            const manualTotal   = manualRevenue.reduce((s, r) => s + Number(r.amount), 0);
+            const totalRevenue  = orderRevenue + manualTotal;
             const totalExpenses = expenses.reduce((s, e) => s + Number(e.amount), 0);
             const net           = totalRevenue - totalExpenses;
-            const avgOrder      = doneOrders.length > 0 ? totalRevenue / doneOrders.length : 0;
+            const avgOrder      = doneOrders.length > 0 ? orderRevenue / doneOrders.length : 0;
 
-            // Daily revenue last 7 days
+            // Daily revenue last 7 days (orders + manual)
             const today = new Date();
             const days7 = Array.from({ length: 7 }, (_, i) => {
               const d = new Date(today);
@@ -716,6 +758,10 @@ export default function DashboardPage() {
             doneOrders.forEach((o) => {
               const day = o.created_at.slice(0, 10);
               if (revenueByDay[day] !== undefined) revenueByDay[day] += Number(o.total);
+            });
+            manualRevenue.forEach((r) => {
+              const day = r.revenue_date;
+              if (revenueByDay[day] !== undefined) revenueByDay[day] += Number(r.amount);
             });
             const maxDay = Math.max(...Object.values(revenueByDay), 1);
 
@@ -756,6 +802,94 @@ export default function DashboardPage() {
                       );
                     })}
                   </div>
+                </div>
+
+                {/* Manual Revenue */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <p style={{ fontSize: 11, letterSpacing: 3, color: GREEN, fontWeight: 700, textTransform: "uppercase", margin: 0 }}>
+                      Manual Revenue — ${manualTotal.toFixed(2)} total
+                    </p>
+                    {!addingRevenue && !noRevenueTable && (
+                      <button
+                        onClick={() => setAddingRevenue(true)}
+                        style={{ background: "none", border: `1px solid ${GREEN}`, borderRadius: 8, padding: "8px 16px", color: GREEN, fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                      >
+                        + Add revenue
+                      </button>
+                    )}
+                  </div>
+
+                  {noRevenueTable && (
+                    <div style={{ ...card, padding: "16px 20px", borderColor: ACCENT + "44" }}>
+                      <p style={{ color: ACCENT, fontSize: 13, fontWeight: 700, margin: "0 0 6px" }}>Migration required</p>
+                      <p style={{ color: MUTED, fontSize: 12, margin: 0 }}>
+                        Run <code style={{ background: BG, padding: "2px 6px", borderRadius: 4 }}>supabase/add_manual_revenue.sql</code> in your Supabase SQL editor to enable manual revenue tracking.
+                      </p>
+                    </div>
+                  )}
+
+                  {addingRevenue && (
+                    <form onSubmit={addManualRevenue} style={{ ...card, display: "flex", flexDirection: "column", gap: 14 }}>
+                      <p style={{ fontSize: 13, fontWeight: 700, color: TEXT, margin: 0 }}>New revenue entry</p>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                          <label style={{ fontSize: 11, color: MUTED, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase" }}>Category *</label>
+                          <select required value={revenueForm.category}
+                            onChange={(e) => setRevenueForm((f) => ({ ...f, category: e.target.value }))}
+                            style={{ background: BG, border: `1px solid ${BORDER}`, borderRadius: 8, padding: "11px 14px", color: TEXT, fontSize: 14, outline: "none", cursor: "pointer" }}>
+                            {REVENUE_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                          </select>
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                          <label style={{ fontSize: 11, color: MUTED, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase" }}>Amount *</label>
+                          <input required type="number" min="0" step="0.01" placeholder="0.00" value={revenueForm.amount}
+                            onChange={(e) => setRevenueForm((f) => ({ ...f, amount: e.target.value }))}
+                            style={{ background: BG, border: `1px solid ${BORDER}`, borderRadius: 8, padding: "11px 14px", color: TEXT, fontSize: 14, outline: "none" }} />
+                        </div>
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                          <label style={{ fontSize: 11, color: MUTED, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase" }}>Description</label>
+                          <input placeholder="Optional" value={revenueForm.description}
+                            onChange={(e) => setRevenueForm((f) => ({ ...f, description: e.target.value }))}
+                            style={{ background: BG, border: `1px solid ${BORDER}`, borderRadius: 8, padding: "11px 14px", color: TEXT, fontSize: 14, outline: "none" }} />
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                          <label style={{ fontSize: 11, color: MUTED, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase" }}>Date *</label>
+                          <input required type="date" value={revenueForm.revenue_date}
+                            onChange={(e) => setRevenueForm((f) => ({ ...f, revenue_date: e.target.value }))}
+                            style={{ background: BG, border: `1px solid ${BORDER}`, borderRadius: 8, padding: "11px 14px", color: TEXT, fontSize: 14, outline: "none", colorScheme: "dark" }} />
+                        </div>
+                      </div>
+                      {revenueError && <p style={{ color: RED, fontSize: 12, margin: 0 }}>{revenueError}</p>}
+                      <div style={{ display: "flex", gap: 10 }}>
+                        <button type="submit" disabled={revenueSaving}
+                          style={{ background: GREEN, color: BG, border: "none", borderRadius: 8, padding: "10px 20px", fontWeight: 800, fontSize: 13, cursor: revenueSaving ? "not-allowed" : "pointer" }}>
+                          {revenueSaving ? "Saving…" : "Add revenue"}
+                        </button>
+                        <button type="button" onClick={() => { setAddingRevenue(false); setRevenueForm(EMPTY_REVENUE); setRevenueError(""); }}
+                          style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "10px 20px", color: MUTED, fontSize: 13, cursor: "pointer" }}>
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+                  )}
+
+                  {!noRevenueTable && manualRevenue.length > 0 && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      {manualRevenue.map((r) => (
+                        <div key={r.id} style={{ ...card, padding: "14px 20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                            <span style={{ fontWeight: 700, fontSize: 14 }}>{r.category}</span>
+                            {r.description && <span style={{ color: MUTED, fontSize: 12 }}>{r.description}</span>}
+                            <span style={{ color: MUTED, fontSize: 11, fontFamily: "monospace" }}>{r.revenue_date}</span>
+                          </div>
+                          <span style={{ fontWeight: 800, fontSize: 15, color: GREEN }}>+${Number(r.amount).toFixed(2)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Expenses */}

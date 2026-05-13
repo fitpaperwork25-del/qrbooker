@@ -114,6 +114,20 @@ create table if not exists business_expenses (
 );
 
 -- ============================================================
+-- manual_revenue
+-- Owner-entered revenue not captured via orders (cash, catering, etc.)
+-- ============================================================
+create table if not exists manual_revenue (
+  id            uuid primary key default uuid_generate_v4(),
+  business_id   uuid not null references businesses(id) on delete cascade,
+  amount        numeric(10, 2) not null,
+  category      text not null check (category in ('Dine-in', 'Takeout', 'Catering', 'Other')),
+  description   text,
+  revenue_date  date not null,
+  created_at    timestamptz not null default now()
+);
+
+-- ============================================================
 -- Indexes
 -- ============================================================
 create index if not exists idx_businesses_owner        on businesses(owner_id);
@@ -126,6 +140,8 @@ create index if not exists idx_orders_status           on orders(status);
 create index if not exists idx_order_items_order       on order_items(order_id);
 create index if not exists idx_expenses_business       on business_expenses(business_id);
 create index if not exists idx_expenses_date           on business_expenses(expense_date);
+create index if not exists idx_manual_revenue_business on manual_revenue(business_id);
+create index if not exists idx_manual_revenue_date     on manual_revenue(revenue_date);
 
 -- ============================================================
 -- updated_at trigger for orders
@@ -219,4 +235,11 @@ create policy "public can insert order items"
 -- business_expenses: owner only
 create policy "owner can manage expenses"
   on business_expenses for all
+  using (business_id in (select id from businesses where owner_id = auth.uid()));
+
+-- manual_revenue: owner only
+alter table manual_revenue enable row level security;
+
+create policy "owner can manage manual revenue"
+  on manual_revenue for all
   using (business_id in (select id from businesses where owner_id = auth.uid()));
