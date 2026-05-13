@@ -6,6 +6,7 @@ import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import DashboardPage from "./pages/DashboardPage";
 import ScanPage from "./pages/ScanPage";
+import StaffDashboardPage from "./pages/StaffDashboardPage";
 import StaffLoginPage from "./pages/StaffLoginPage";
 
 // Placeholders — replace with real pages as they are built
@@ -81,7 +82,7 @@ export default function App() {
         path="/staff"
         element={
           <StaffGuard>
-            <Placeholder name="StaffDashboardPage" />
+            <StaffDashboardPage />
           </StaffGuard>
         }
       />
