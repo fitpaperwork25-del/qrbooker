@@ -88,7 +88,7 @@ export default function RegisterPage() {
       setLoading(false);
       return;
     }
-    navigate("/dashboard");
+    window.location.href = "/dashboard";
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
