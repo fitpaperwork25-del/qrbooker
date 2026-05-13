@@ -15,10 +15,20 @@ type Business = {
   slug: string;
 };
 
-type Location = { id: string; name: string; label: string | null; is_active: boolean };
-type Order    = { id: string; status: string; total: number; created_at: string };
-type Category = { id: string; name: string; display_order: number };
-type MenuItem = { id: string; category_id: string; name: string; price: number; description: string | null; is_available: boolean };
+type Location  = { id: string; name: string; label: string | null; is_active: boolean };
+type Order     = { id: string; status: string; total: number; created_at: string };
+type OrderItem = { id: string; name: string; quantity: number; unit_price: number };
+type Category  = { id: string; name: string; display_order: number };
+type MenuItem  = { id: string; category_id: string; name: string; price: number; description: string | null; is_available: boolean };
+
+const ORDER_STATUS_COLOR: Record<string, string> = {
+  new:       "#E8C547",
+  preparing: "#F97316",
+  ready:     "#4CAF50",
+  done:      "#888888",
+  cancelled: "#f44336",
+};
+const ORDER_STATUSES = ["new", "preparing", "ready", "done"] as const;
 
 type Tab = "tables" | "menu" | "orders";
 
@@ -87,6 +97,10 @@ export default function DashboardPage() {
   const [itemForm, setItemForm]       = useState(EMPTY_ITEM);
   const [itemError, setItemError]     = useState("");
   const [itemSaving, setItemSaving]   = useState(false);
+
+  // Orders expand + items cache
+  const [expandedOrderId, setExpandedOrderId]     = useState<string | null>(null);
+  const [orderItemsCache, setOrderItemsCache]     = useState<Record<string, OrderItem[]>>({});
 
   useEffect(() => {
     if (!session?.user.id) return;
@@ -189,6 +203,28 @@ export default function DashboardPage() {
     setItemForm(EMPTY_ITEM);
     setAddingItem(false);
     setItemSaving(false);
+  }
+
+  async function toggleOrder(orderId: string) {
+    if (expandedOrderId === orderId) { setExpandedOrderId(null); return; }
+    setExpandedOrderId(orderId);
+    if (orderItemsCache[orderId]) return;
+    const { data } = await supabase
+      .from("order_items")
+      .select("id, quantity, unit_price, menu_items(name)")
+      .eq("order_id", orderId);
+    const items: OrderItem[] = (data ?? []).map((row: any) => ({
+      id:         row.id,
+      name:       row.menu_items?.name ?? "Unknown item",
+      quantity:   row.quantity,
+      unit_price: row.unit_price,
+    }));
+    setOrderItemsCache((prev) => ({ ...prev, [orderId]: items }));
+  }
+
+  async function updateOrderStatus(orderId: string, newStatus: string) {
+    const { error } = await supabase.from("orders").update({ status: newStatus }).eq("id", orderId);
+    if (!error) setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: newStatus } : o));
   }
 
   async function downloadQR(loc: Location) {
@@ -528,21 +564,86 @@ export default function DashboardPage() {
                 <Empty message="No orders yet." sub="Orders will appear here in real time once customers start scanning." />
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  {orders.map((order) => (
-                    <div key={order.id} style={{ ...card, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
-                        <span style={badge(
-                          order.status === "done" ? GREEN :
-                          order.status === "cancelled" ? RED :
-                          order.status === "new" ? ACCENT : MUTED
-                        )}>{order.status}</span>
-                        <span style={{ color: MUTED, fontSize: 12, fontFamily: "monospace" }}>
-                          {new Date(order.created_at).toLocaleString()}
-                        </span>
+                  {orders.map((order) => {
+                    const isExpanded = expandedOrderId === order.id;
+                    const statusColor = ORDER_STATUS_COLOR[order.status] ?? MUTED;
+                    const items = orderItemsCache[order.id];
+                    return (
+                      <div key={order.id} style={{ ...card, padding: "0" }}>
+                        {/* Order header row — click to expand */}
+                        <div
+                          onClick={() => toggleOrder(order.id)}
+                          style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", cursor: "pointer" }}
+                        >
+                          <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+                            <span style={badge(statusColor)}>{order.status}</span>
+                            <span style={{ color: MUTED, fontSize: 12, fontFamily: "monospace" }}>
+                              {new Date(order.created_at).toLocaleString()}
+                            </span>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                            <span style={{ fontWeight: 800, fontSize: 15 }}>${Number(order.total).toFixed(2)}</span>
+                            <span style={{ color: MUTED, fontSize: 12 }}>{isExpanded ? "▲" : "▼"}</span>
+                          </div>
+                        </div>
+
+                        {/* Expanded: items + status buttons */}
+                        {isExpanded && (
+                          <div style={{ borderTop: `1px solid ${BORDER}`, padding: "16px 20px", display: "flex", flexDirection: "column", gap: 16 }}>
+
+                            {/* Items list */}
+                            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                              {!items ? (
+                                <p style={{ color: MUTED, fontSize: 13, margin: 0 }}>Loading items…</p>
+                              ) : items.length === 0 ? (
+                                <p style={{ color: MUTED, fontSize: 13, margin: 0 }}>No items found.</p>
+                              ) : (
+                                items.map((oi) => (
+                                  <div key={oi.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 14 }}>
+                                    <span style={{ color: TEXT }}>
+                                      <span style={{ color: MUTED, fontFamily: "monospace", marginRight: 10 }}>{oi.quantity}×</span>
+                                      {oi.name}
+                                    </span>
+                                    <span style={{ color: MUTED }}>${(oi.unit_price * oi.quantity).toFixed(2)}</span>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+
+                            {/* Status buttons */}
+                            {order.status !== "cancelled" && (
+                              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                {ORDER_STATUSES.map((s) => {
+                                  const active = order.status === s;
+                                  const color = ORDER_STATUS_COLOR[s];
+                                  return (
+                                    <button
+                                      key={s}
+                                      onClick={() => updateOrderStatus(order.id, s)}
+                                      style={{
+                                        background: active ? color + "33" : "none",
+                                        border: `1px solid ${active ? color : BORDER}`,
+                                        borderRadius: 8,
+                                        padding: "7px 16px",
+                                        color: active ? color : MUTED,
+                                        fontWeight: active ? 800 : 600,
+                                        fontSize: 12,
+                                        cursor: "pointer",
+                                        textTransform: "uppercase",
+                                        letterSpacing: 0.5,
+                                      }}
+                                    >
+                                      {s}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
-                      <span style={{ fontWeight: 800, fontSize: 15 }}>${Number(order.total).toFixed(2)}</span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
