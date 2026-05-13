@@ -7,12 +7,12 @@ create table if not exists manual_revenue (
   amount        numeric(10, 2) not null,
   category      text not null check (category in ('Dine-in', 'Takeout', 'Catering', 'Other')),
   description   text,
-  revenue_date  date not null,
+  date  date not null,
   created_at    timestamptz not null default now()
 );
 
 create index if not exists idx_manual_revenue_business on manual_revenue(business_id);
-create index if not exists idx_manual_revenue_date     on manual_revenue(revenue_date);
+create index if not exists idx_manual_date     on manual_revenue(date);
 
 alter table manual_revenue enable row level security;
 
