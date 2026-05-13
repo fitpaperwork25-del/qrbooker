@@ -5,6 +5,7 @@ import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import DashboardPage from "./pages/DashboardPage";
+import ScanPage from "./pages/ScanPage";
 import StaffLoginPage from "./pages/StaffLoginPage";
 
 // Placeholders — replace with real pages as they are built
@@ -30,7 +31,7 @@ export default function App() {
       <Route path="/terms" element={<Placeholder name="TermsPage" />} />
       <Route path="/privacy" element={<Placeholder name="PrivacyPage" />} />
       <Route path="/reset-password" element={<Placeholder name="ResetPasswordPage" />} />
-      <Route path="/scan/:bizId/:locationId" element={<Placeholder name="ScanPage" />} />
+      <Route path="/scan/:bizId/:locationId" element={<ScanPage />} />
       <Route path="/book/:slug" element={<Placeholder name="BookingPage" />} />
 
       {/* Owner-protected */}
