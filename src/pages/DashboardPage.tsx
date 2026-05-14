@@ -140,6 +140,29 @@ export default function DashboardPage() {
     void load(session.user.id);
   }, [session]);
 
+  useEffect(() => {
+    if (!business?.id) return;
+    const channel = supabase
+      .channel(`orders-${business.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "orders", filter: `business_id=eq.${business.id}` },
+        (payload) => {
+          if (payload.eventType === "INSERT") {
+            setOrders((prev) => [payload.new as Order, ...prev].slice(0, 20));
+          } else if (payload.eventType === "UPDATE") {
+            setOrders((prev) =>
+              prev.map((o) => o.id === (payload.new as Order).id ? (payload.new as Order) : o)
+            );
+          } else if (payload.eventType === "DELETE") {
+            setOrders((prev) => prev.filter((o) => o.id !== (payload.old as { id: string }).id));
+          }
+        }
+      )
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [business?.id]);
+
   async function load(userId: string) {
     setLoading(true);
 
