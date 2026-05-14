@@ -32,7 +32,11 @@ export async function staffLogin(
     .eq("slug", slug.trim().toLowerCase())
     .maybeSingle();
 
-  if (error || !data) {
+  if (error) {
+    console.error("staffLogin query error:", error);
+    return { session: null, error: `Lookup failed: ${error.message}` };
+  }
+  if (!data) {
     return { session: null, error: "Restaurant not found. Check the ID and try again." };
   }
   if (!data.staff_pin) {
