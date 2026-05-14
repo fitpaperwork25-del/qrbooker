@@ -142,25 +142,17 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!business?.id) return;
-    const channel = supabase
-      .channel(`orders-${business.id}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "orders", filter: `business_id=eq.${business.id}` },
-        (payload) => {
-          if (payload.eventType === "INSERT") {
-            setOrders((prev) => [payload.new as Order, ...prev].slice(0, 20));
-          } else if (payload.eventType === "UPDATE") {
-            setOrders((prev) =>
-              prev.map((o) => o.id === (payload.new as Order).id ? (payload.new as Order) : o)
-            );
-          } else if (payload.eventType === "DELETE") {
-            setOrders((prev) => prev.filter((o) => o.id !== (payload.old as { id: string }).id));
-          }
-        }
-      )
-      .subscribe();
-    return () => { void supabase.removeChannel(channel); };
+    const fetchOrders = async () => {
+      const { data } = await supabase
+        .from("orders")
+        .select("id, status, total, created_at")
+        .eq("business_id", business.id)
+        .order("created_at", { ascending: false })
+        .limit(20);
+      if (data) setOrders(data as Order[]);
+    };
+    const timer = setInterval(fetchOrders, 15000);
+    return () => clearInterval(timer);
   }, [business?.id]);
 
   async function load(userId: string) {
