@@ -6,6 +6,7 @@ import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import DashboardPage from "./pages/DashboardPage";
 import ScanPage from "./pages/ScanPage";
+import ScanLandingPage from "./pages/ScanLandingPage";
 import SuccessPage from "./pages/SuccessPage";
 import StaffDashboardPage from "./pages/StaffDashboardPage";
 import StaffLoginPage from "./pages/StaffLoginPage";
@@ -33,6 +34,7 @@ export default function App() {
       <Route path="/terms" element={<Placeholder name="TermsPage" />} />
       <Route path="/privacy" element={<Placeholder name="PrivacyPage" />} />
       <Route path="/reset-password" element={<Placeholder name="ResetPasswordPage" />} />
+      <Route path="/scan/:bizSlug" element={<ScanLandingPage />} />
       <Route path="/scan/:bizId/:locationId" element={<ScanPage />} />
       <Route path="/book/:slug" element={<Placeholder name="BookingPage" />} />
 
