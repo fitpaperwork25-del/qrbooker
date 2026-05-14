@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { supabase } from "../lib/supabase";
+import { anonSupabase as supabase } from "../lib/anonSupabase";
 
 type Biz = { id: string; name: string };
 type Loc = { id: string; name: string; label: string | null };
