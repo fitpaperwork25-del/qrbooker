@@ -21,6 +21,13 @@ type OrderItem = {
   unit_price: number;
 };
 
+type TabRow = {
+  id: string;
+  table_name: string;
+  total: number;
+  opened_at: string;
+};
+
 // ── Constants ─────────────────────────────────────────────────
 const STATUS_COLOR: Record<string, string> = {
   new:       "#E8C547",
@@ -45,6 +52,7 @@ export default function StaffDashboardPage() {
 
   const [orders, setOrders]         = useState<OrderRow[]>([]);
   const [items, setItems]           = useState<OrderItem[]>([]);
+  const [openTabs, setOpenTabs]     = useState<TabRow[]>([]);
   const [loading, setLoading]       = useState(true);
   const [lastChecked, setLastChecked] = useState(nowStr());
 
@@ -57,14 +65,22 @@ export default function StaffDashboardPage() {
     if (!bizId) { navigate("/staff-login", { replace: true }); return; }
 
     async function fetchOrders() {
-      const { data: ordData } = await supabase
-        .from("orders")
-        .select("id, status, total, created_at, location_id, locations(name, label)")
-        .eq("business_id", bizId)
-        .in("status", ["new", "preparing"])
-        .order("created_at", { ascending: true });
+      const [ordRes, tabRes] = await Promise.all([
+        supabase
+          .from("orders")
+          .select("id, status, total, created_at, location_id, locations(name, label)")
+          .eq("business_id", bizId)
+          .in("status", ["new", "preparing"])
+          .order("created_at", { ascending: true }),
+        supabase
+          .from("tabs")
+          .select("id, total, opened_at, locations(name, label)")
+          .eq("business_id", bizId)
+          .eq("status", "open")
+          .order("opened_at", { ascending: true }),
+      ]);
 
-      const rows: OrderRow[] = (ordData ?? []).map((o: any) => ({
+      const rows: OrderRow[] = (ordRes.data ?? []).map((o: any) => ({
         id:          o.id,
         status:      o.status,
         total:       o.total,
@@ -73,6 +89,15 @@ export default function StaffDashboardPage() {
         table_name:  o.locations?.label || o.locations?.name || "Unknown table",
       }));
       setOrders(rows);
+
+      setOpenTabs(
+        (tabRes.data ?? []).map((t: any) => ({
+          id:         t.id,
+          table_name: t.locations?.label || t.locations?.name || "Unknown table",
+          total:      t.total,
+          opened_at:  t.opened_at,
+        }))
+      );
 
       if (rows.length > 0) {
         const { data: itemData } = await supabase
@@ -103,6 +128,14 @@ export default function StaffDashboardPage() {
 
     return () => clearInterval(id);
   }, [bizId]);
+
+  async function closeTab(tabId: string) {
+    const { error } = await supabase
+      .from("tabs")
+      .update({ status: "closed", closed_at: new Date().toISOString() })
+      .eq("id", tabId);
+    if (!error) setOpenTabs((prev) => prev.filter((t) => t.id !== tabId));
+  }
 
   async function cancelOrder(orderId: string, reason: string) {
     setCancelError("");
@@ -179,6 +212,34 @@ export default function StaffDashboardPage() {
           </button>
         </div>
       </header>
+
+      {/* Open Tabs */}
+      {openTabs.length > 0 && (
+        <div style={{ padding: "16px 16px 0", maxWidth: 680, margin: "0 auto" }}>
+          <div style={{ fontSize: 11, letterSpacing: 3, color: "#E8C547", fontWeight: 700, textTransform: "uppercase", marginBottom: 10 }}>
+            Open Tabs — {openTabs.length}
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {openTabs.map((tab) => (
+              <div key={tab.id} style={{ background: "#1a1400", border: "1px solid #E8C54733", borderRadius: 12, padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: 16 }}>{tab.table_name}</div>
+                  <div style={{ fontSize: 11, color: MUTED, marginTop: 2 }}>{minutesAgo(tab.opened_at)}</div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <span style={{ fontWeight: 900, fontSize: 18, color: "#E8C547" }}>${Number(tab.total).toFixed(2)}</span>
+                  <button
+                    onClick={() => closeTab(tab.id)}
+                    style={{ background: "none", border: "1px solid #E8C54766", borderRadius: 8, padding: "5px 12px", color: "#E8C547", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                  >
+                    Close Tab
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Orders */}
       <div style={{ padding: "20px 16px", display: "flex", flexDirection: "column", gap: 16, maxWidth: 680, margin: "0 auto" }}>

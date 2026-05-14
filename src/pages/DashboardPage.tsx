@@ -17,6 +17,7 @@ type Business = {
 
 type Location  = { id: string; name: string; label: string | null; is_active: boolean };
 type Order     = { id: string; status: string; total: number; created_at: string; cancel_reason: string | null };
+type OpenTab   = { id: string; table_name: string; total: number; opened_at: string; };
 type OrderItem = { id: string; name: string; quantity: number; unit_price: number };
 type Category  = { id: string; name: string; display_order: number };
 type MenuItem  = { id: string; category_id: string; name: string; price: number; description: string | null; is_available: boolean };
@@ -115,6 +116,7 @@ export default function DashboardPage() {
   // Orders expand + items cache
   const [expandedOrders, setExpandedOrders]   = useState<Set<string>>(new Set());
   const [orderItemsCache, setOrderItemsCache] = useState<Record<string, OrderItem[]>>({});
+  const [openTabs, setOpenTabs]               = useState<OpenTab[]>([]);
 
   // Order cancellation
   const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
@@ -151,28 +153,44 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!business?.id) return;
     const fetchOrders = async (isPolling = false) => {
-      const { data } = await supabase
-        .from("orders")
-        .select("id, status, total, created_at, cancel_reason")
-        .eq("business_id", business.id)
-        .order("created_at", { ascending: false })
-        .limit(20);
-      if (data) {
+      const [ordRes, tabsRes] = await Promise.all([
+        supabase
+          .from("orders")
+          .select("id, status, total, created_at, cancel_reason")
+          .eq("business_id", business.id)
+          .order("created_at", { ascending: false })
+          .limit(20),
+        supabase
+          .from("tabs")
+          .select("id, total, opened_at, locations(name, label)")
+          .eq("business_id", business.id)
+          .eq("status", "open")
+          .order("opened_at", { ascending: true }),
+      ]);
+      if (ordRes.data) {
         if (isPolling) {
           setOrders((prev) => {
-            const newOrders = (data as Order[]).filter(
+            const newOrders = (ordRes.data as Order[]).filter(
               (o) => !prev.some((p) => p.id === o.id)
             );
-            if (newOrders.length > 0) {
-              if (Notification.permission === "granted") {
-                new Notification(`${newOrders.length} new order(s) received!`);
-              }
+            if (newOrders.length > 0 && Notification.permission === "granted") {
+              new Notification(`${newOrders.length} new order(s) received!`);
             }
-            return data as Order[];
+            return ordRes.data as Order[];
           });
         } else {
-          setOrders(data as Order[]);
+          setOrders(ordRes.data as Order[]);
         }
+      }
+      if (tabsRes.data) {
+        setOpenTabs(
+          (tabsRes.data as any[]).map((t) => ({
+            id:         t.id,
+            table_name: t.locations?.label || t.locations?.name || "Unknown table",
+            total:      t.total,
+            opened_at:  t.opened_at,
+          }))
+        );
       }
     };
     fetchOrders();
@@ -189,16 +207,25 @@ export default function DashboardPage() {
     setBusiness(biz);
 
     if (biz) {
-      const [locRes, ordRes, catRes] = await Promise.all([
+      const [locRes, ordRes, catRes, tabsRes] = await Promise.all([
         supabase.from("locations").select("id, name, label, is_active").eq("business_id", biz.id).order("name"),
         supabase.from("orders").select("id, status, total, created_at, cancel_reason").eq("business_id", biz.id).order("created_at", { ascending: false }).limit(20),
         supabase.from("menu_categories").select("id, name, display_order").eq("business_id", biz.id).order("display_order"),
+        supabase.from("tabs").select("id, total, opened_at, locations(name, label)").eq("business_id", biz.id).eq("status", "open").order("opened_at", { ascending: true }),
       ]);
 
       const cats = (catRes.data as Category[]) ?? [];
       setLocations((locRes.data as Location[]) ?? []);
       setOrders((ordRes.data as Order[]) ?? []);
       setCategories(cats);
+      setOpenTabs(
+        ((tabsRes.data ?? []) as any[]).map((t) => ({
+          id:         t.id,
+          table_name: t.locations?.label || t.locations?.name || "Unknown table",
+          total:      t.total,
+          opened_at:  t.opened_at,
+        }))
+      );
 
       if (cats.length > 0) {
         const itemRes = await supabase
@@ -212,7 +239,7 @@ export default function DashboardPage() {
       const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
       const [doneRes, expRes, revRes, cancelRes] = await Promise.all([
         supabase.from("orders").select("id, status, total, created_at, cancel_reason")
-          .eq("business_id", biz.id).eq("status", "done")
+          .eq("business_id", biz.id).neq("status", "cancelled")
           .gte("created_at", thirtyDaysAgo).order("created_at", { ascending: false }),
         supabase.from("business_expenses").select("id, amount, category, description, expense_date")
           .eq("business_id", biz.id).order("expense_date", { ascending: false }),
@@ -320,6 +347,14 @@ export default function DashboardPage() {
       unit_price: row.unit_price,
     }));
     setOrderItemsCache((prev) => ({ ...prev, [orderId]: items }));
+  }
+
+  async function closeTab(tabId: string) {
+    const { error } = await supabase
+      .from("tabs")
+      .update({ status: "closed", closed_at: new Date().toISOString() })
+      .eq("id", tabId);
+    if (!error) setOpenTabs((prev) => prev.filter((t) => t.id !== tabId));
   }
 
   async function updateOrderStatus(orderId: string, newStatus: string) {
@@ -816,7 +851,39 @@ export default function DashboardPage() {
 
           {/* Orders tab */}
           {tab === "orders" && (
-            <div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+
+              {/* Open Tabs section */}
+              {openTabs.length > 0 && (
+                <div>
+                  <p style={{ fontSize: 11, letterSpacing: 3, color: ACCENT, fontWeight: 700, textTransform: "uppercase", margin: "0 0 12px" }}>
+                    Open Tabs — {openTabs.length}
+                  </p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {openTabs.map((tab) => (
+                      <div key={tab.id} style={{ ...card, padding: "14px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", borderColor: ACCENT + "44" }}>
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: 15 }}>{tab.table_name}</div>
+                          <div style={{ color: MUTED, fontSize: 12, marginTop: 2 }}>
+                            Opened {new Date(tab.opened_at).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                          <span style={{ fontWeight: 900, fontSize: 18, color: ACCENT }}>${Number(tab.total).toFixed(2)}</span>
+                          <button
+                            onClick={() => closeTab(tab.id)}
+                            style={{ background: "none", border: `1px solid ${ACCENT}66`, borderRadius: 8, padding: "6px 14px", color: ACCENT, fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                          >
+                            Close Tab
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div>
               {orders.length === 0 ? (
                 <Empty message="No orders yet." sub="Orders will appear here in real time once customers start scanning." />
               ) : (
@@ -955,6 +1022,7 @@ export default function DashboardPage() {
                   })}
                 </div>
               )}
+              </div>
             </div>
           )}
           {/* Financials tab */}
@@ -992,7 +1060,7 @@ export default function DashboardPage() {
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14 }}>
                   {[
                     { label: "Revenue (30d)",   value: `$${totalRevenue.toFixed(2)}`,  color: GREEN },
-                    { label: "Orders (done)",    value: doneOrders.length.toString(),   color: ACCENT },
+                    { label: "Orders (billed)",   value: doneOrders.length.toString(),   color: ACCENT },
                     { label: "Avg order value",  value: `$${avgOrder.toFixed(2)}`,      color: ACCENT },
                     { label: "Net (30d)",        value: `$${net.toFixed(2)}`,           color: net >= 0 ? GREEN : RED },
                   ].map((s) => (
