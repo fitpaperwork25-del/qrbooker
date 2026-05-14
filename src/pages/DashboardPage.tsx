@@ -16,7 +16,7 @@ type Business = {
 };
 
 type Location  = { id: string; name: string; label: string | null; is_active: boolean };
-type Order     = { id: string; status: string; total: number; created_at: string };
+type Order     = { id: string; status: string; total: number; created_at: string; cancel_reason: string | null };
 type OrderItem = { id: string; name: string; quantity: number; unit_price: number };
 type Category  = { id: string; name: string; display_order: number };
 type MenuItem  = { id: string; category_id: string; name: string; price: number; description: string | null; is_available: boolean };
@@ -36,6 +36,7 @@ const ORDER_STATUS_COLOR: Record<string, string> = {
   cancelled: "#f44336",
 };
 const ORDER_STATUSES = ["new", "preparing", "ready", "done"] as const;
+const CANCEL_REASONS = ["Wrong order", "Customer refused", "Item unavailable", "Other"] as const;
 
 type Tab = "tables" | "menu" | "orders" | "financials";
 
@@ -115,6 +116,10 @@ export default function DashboardPage() {
   const [expandedOrders, setExpandedOrders]   = useState<Set<string>>(new Set());
   const [orderItemsCache, setOrderItemsCache] = useState<Record<string, OrderItem[]>>({});
 
+  // Order cancellation
+  const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
+  const [cancelReason, setCancelReason]           = useState("");
+
   // Financials
   const [doneOrders, setDoneOrders]           = useState<Order[]>([]);
   const [expenses, setExpenses]               = useState<Expense[]>([]);
@@ -145,7 +150,7 @@ export default function DashboardPage() {
     const fetchOrders = async (isPolling = false) => {
       const { data } = await supabase
         .from("orders")
-        .select("id, status, total, created_at")
+        .select("id, status, total, created_at, cancel_reason")
         .eq("business_id", business.id)
         .order("created_at", { ascending: false })
         .limit(20);
@@ -183,7 +188,7 @@ export default function DashboardPage() {
     if (biz) {
       const [locRes, ordRes, catRes] = await Promise.all([
         supabase.from("locations").select("id, name, label, is_active").eq("business_id", biz.id).order("name"),
-        supabase.from("orders").select("id, status, total, created_at").eq("business_id", biz.id).order("created_at", { ascending: false }).limit(20),
+        supabase.from("orders").select("id, status, total, created_at, cancel_reason").eq("business_id", biz.id).order("created_at", { ascending: false }).limit(20),
         supabase.from("menu_categories").select("id, name, display_order").eq("business_id", biz.id).order("display_order"),
       ]);
 
@@ -313,6 +318,20 @@ export default function DashboardPage() {
   async function updateOrderStatus(orderId: string, newStatus: string) {
     const { error } = await supabase.from("orders").update({ status: newStatus }).eq("id", orderId);
     if (!error) setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: newStatus } : o));
+  }
+
+  async function cancelOrder(orderId: string, reason: string) {
+    const { error } = await supabase
+      .from("orders")
+      .update({ status: "cancelled", cancel_reason: reason })
+      .eq("id", orderId);
+    if (!error) {
+      setOrders((prev) => prev.map((o) =>
+        o.id === orderId ? { ...o, status: "cancelled", cancel_reason: reason } : o
+      ));
+      setCancellingOrderId(null);
+      setCancelReason("");
+    }
   }
 
   async function startCheckout(plan: string) {
@@ -814,7 +833,7 @@ export default function DashboardPage() {
                           </div>
                         </div>
 
-                        {/* Expanded: items + status buttons */}
+                        {/* Expanded: items + status buttons + cancel */}
                         {isExpanded && (
                           <div style={{ borderTop: `1px solid ${BORDER}`, padding: "16px 20px", display: "flex", flexDirection: "column", gap: 16 }}>
 
@@ -837,33 +856,80 @@ export default function DashboardPage() {
                               )}
                             </div>
 
-                            {/* Status buttons */}
+                            {/* Cancellation reason — cancelled orders only */}
+                            {order.status === "cancelled" && (
+                              <div style={{ fontSize: 12, color: RED, fontStyle: "italic" }}>
+                                Cancelled{order.cancel_reason ? `: ${order.cancel_reason}` : ""}
+                              </div>
+                            )}
+
+                            {/* Status buttons + cancel action — active orders only */}
                             {order.status !== "cancelled" && (
-                              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                                {ORDER_STATUSES.map((s) => {
-                                  const active = order.status === s;
-                                  const color = ORDER_STATUS_COLOR[s];
-                                  return (
-                                    <button
-                                      key={s}
-                                      onClick={() => updateOrderStatus(order.id, s)}
-                                      style={{
-                                        background: active ? color + "33" : "none",
-                                        border: `1px solid ${active ? color : BORDER}`,
-                                        borderRadius: 8,
-                                        padding: "7px 16px",
-                                        color: active ? color : MUTED,
-                                        fontWeight: active ? 800 : 600,
-                                        fontSize: 12,
-                                        cursor: "pointer",
-                                        textTransform: "uppercase",
-                                        letterSpacing: 0.5,
-                                      }}
-                                    >
-                                      {s}
-                                    </button>
-                                  );
-                                })}
+                              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                  {ORDER_STATUSES.map((s) => {
+                                    const active = order.status === s;
+                                    const color = ORDER_STATUS_COLOR[s];
+                                    return (
+                                      <button
+                                        key={s}
+                                        onClick={() => updateOrderStatus(order.id, s)}
+                                        style={{
+                                          background: active ? color + "33" : "none",
+                                          border: `1px solid ${active ? color : BORDER}`,
+                                          borderRadius: 8,
+                                          padding: "7px 16px",
+                                          color: active ? color : MUTED,
+                                          fontWeight: active ? 800 : 600,
+                                          fontSize: 12,
+                                          cursor: "pointer",
+                                          textTransform: "uppercase",
+                                          letterSpacing: 0.5,
+                                        }}
+                                      >
+                                        {s}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+
+                                {/* Cancel — not available once done */}
+                                {order.status !== "done" && (
+                                  cancellingOrderId === order.id ? (
+                                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", paddingTop: 8, borderTop: `1px solid ${BORDER}` }}>
+                                      <select
+                                        value={cancelReason}
+                                        onChange={(e) => setCancelReason(e.target.value)}
+                                        style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 8, padding: "7px 12px", color: cancelReason ? TEXT : MUTED, fontSize: 12, cursor: "pointer" }}
+                                      >
+                                        <option value="">Select reason…</option>
+                                        {CANCEL_REASONS.map((r) => <option key={r}>{r}</option>)}
+                                      </select>
+                                      <button
+                                        onClick={() => cancelOrder(order.id, cancelReason)}
+                                        disabled={!cancelReason}
+                                        style={{ background: cancelReason ? RED + "22" : "none", border: `1px solid ${cancelReason ? RED : BORDER}`, borderRadius: 8, padding: "7px 16px", color: cancelReason ? RED : MUTED, fontWeight: 700, fontSize: 12, cursor: cancelReason ? "pointer" : "not-allowed", letterSpacing: 0.5, textTransform: "uppercase" }}
+                                      >
+                                        Confirm Cancel
+                                      </button>
+                                      <button
+                                        onClick={() => { setCancellingOrderId(null); setCancelReason(""); }}
+                                        style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "7px 14px", color: MUTED, fontSize: 12, cursor: "pointer" }}
+                                      >
+                                        Keep
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <div style={{ paddingTop: 8, borderTop: `1px solid ${BORDER}` }}>
+                                      <button
+                                        onClick={() => { setCancellingOrderId(order.id); setCancelReason(""); }}
+                                        style={{ background: "none", border: `1px solid ${RED}55`, borderRadius: 8, padding: "7px 16px", color: RED, fontWeight: 700, fontSize: 12, cursor: "pointer", letterSpacing: 0.5, textTransform: "uppercase" }}
+                                      >
+                                        Cancel Order
+                                      </button>
+                                    </div>
+                                  )
+                                )}
                               </div>
                             )}
                           </div>

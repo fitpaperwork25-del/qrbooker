@@ -29,6 +29,7 @@ const STATUS_COLOR: Record<string, string> = {
 };
 
 const STAFF_STATUSES = ["new", "preparing", "ready"] as const;
+const CANCEL_REASONS = ["Wrong order", "Customer refused", "Item unavailable", "Other"] as const;
 const REFRESH_MS = 15_000;
 
 function nowStr() {
@@ -46,6 +47,10 @@ export default function StaffDashboardPage() {
   const [items, setItems]           = useState<OrderItem[]>([]);
   const [loading, setLoading]       = useState(true);
   const [lastChecked, setLastChecked] = useState(nowStr());
+
+  // Order cancellation
+  const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
+  const [cancelReason, setCancelReason]           = useState("");
 
   useEffect(() => {
     if (!bizId) { navigate("/staff-login", { replace: true }); return; }
@@ -97,6 +102,18 @@ export default function StaffDashboardPage() {
 
     return () => clearInterval(id);
   }, [bizId]);
+
+  async function cancelOrder(orderId: string, reason: string) {
+    const { error } = await supabase
+      .from("orders")
+      .update({ status: "cancelled", cancel_reason: reason })
+      .eq("id", orderId);
+    if (!error) {
+      setOrders((prev) => prev.filter((o) => o.id !== orderId));
+      setCancellingOrderId(null);
+      setCancelReason("");
+    }
+  }
 
   async function updateStatus(orderId: string, newStatus: string) {
     const { error } = await supabase
@@ -259,6 +276,42 @@ export default function StaffDashboardPage() {
                     );
                   })}
                 </div>
+
+                {/* Cancel section */}
+                {cancellingOrderId === order.id ? (
+                  <div style={{ borderTop: `1px solid rgba(255,255,255,0.06)`, padding: "10px 18px 16px", display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                    <select
+                      value={cancelReason}
+                      onChange={(e) => setCancelReason(e.target.value)}
+                      style={{ flex: 1, minWidth: 140, background: "#1a1a1a", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "10px 12px", color: cancelReason ? TEXT : MUTED, fontSize: 13, cursor: "pointer" }}
+                    >
+                      <option value="">Select reason…</option>
+                      {CANCEL_REASONS.map((r) => <option key={r}>{r}</option>)}
+                    </select>
+                    <button
+                      onClick={() => { if (cancelReason) cancelOrder(order.id, cancelReason); }}
+                      disabled={!cancelReason}
+                      style={{ padding: "10px 16px", borderRadius: 8, border: `1px solid ${cancelReason ? "#f44336" : BORDER}`, background: cancelReason ? "rgba(244,67,54,0.15)" : "none", color: cancelReason ? "#f44336" : MUTED, fontWeight: 800, fontSize: 13, cursor: cancelReason ? "pointer" : "not-allowed" }}
+                    >
+                      Confirm
+                    </button>
+                    <button
+                      onClick={() => { setCancellingOrderId(null); setCancelReason(""); }}
+                      style={{ padding: "10px 14px", borderRadius: 8, border: `1px solid ${BORDER}`, background: "none", color: MUTED, fontSize: 13, cursor: "pointer" }}
+                    >
+                      Keep
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ borderTop: `1px solid rgba(255,255,255,0.06)`, padding: "10px 18px 14px" }}>
+                    <button
+                      onClick={() => { setCancellingOrderId(order.id); setCancelReason(""); }}
+                      style={{ width: "100%", padding: "10px", borderRadius: 10, border: `1px solid rgba(244,67,54,0.3)`, background: "rgba(244,67,54,0.07)", color: "#f44336", fontWeight: 700, fontSize: 13, cursor: "pointer", letterSpacing: 0.5 }}
+                    >
+                      Cancel Order
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })
