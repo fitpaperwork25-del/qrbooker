@@ -349,9 +349,7 @@ function IncomeStatement({ revenue, totalExpenses, netIncome, expenseByCategory,
 }
 
 function CashFlowStatement({ totalExpenses, netIncome, orders, periodLabel }) {
-  const collected = orders
-    .filter(o => ["ready", "done", "completed", "new", "preparing"].includes(o.status))
-    .reduce((s, o) => s + parseFloat(o.total || 0), 0);
+  const collected = orders.reduce((s, o) => s + parseFloat(o.total || 0), 0);
   const operatingCF = collected - totalExpenses;
 
   return (
@@ -427,7 +425,7 @@ export default function FinancialsTab({ bizId }) {
 
     // Period orders
     let oq = supabase.from("orders").select("id, total, status, created_at")
-      .in("location_id", safeIds).neq("status", "cancelled");
+      .in("location_id", safeIds).eq("status", "done");
     if (startDate) oq = oq.gte("created_at", startDate);
     const { data: ordData } = await oq;
     const periodOrders = ordData || [];
