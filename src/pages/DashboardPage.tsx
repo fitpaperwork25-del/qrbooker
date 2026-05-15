@@ -94,6 +94,7 @@ export default function DashboardPage() {
   const [menuItems, setMenuItems]   = useState<MenuItem[]>([]);
   const [tab, setTab]               = useState<Tab>("tables");
   const [loading, setLoading]       = useState(true);
+  const [isMobile, setIsMobile]     = useState(() => window.innerWidth < 640);
 
   // Add table form
   const [addingTable, setAddingTable]   = useState(false);
@@ -149,6 +150,12 @@ export default function DashboardPage() {
     if (!session?.user.id) return;
     void load(session.user.id);
   }, [session]);
+
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
 
   useEffect(() => {
     if (!business?.id) return;
@@ -560,21 +567,23 @@ export default function DashboardPage() {
     <div style={{ background: BG, minHeight: "100vh", color: TEXT, fontFamily: "sans-serif" }}>
 
       {/* Nav */}
-      <nav style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "18px 32px", borderBottom: `1px solid ${BORDER}` }}>
-        <div>
-          <span style={{ fontWeight: 900, fontSize: 18, letterSpacing: -0.5 }}>{business.name}</span>
-          <span style={{ marginLeft: 12, ...badge(planColor(business.plan)) }}>{business.plan}</span>
-          <span style={{ marginLeft: 8, ...badge(statusColor(business.subscription_status)) }}>{business.subscription_status}</span>
+      <nav style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: isMobile ? "14px 16px" : "18px 32px", borderBottom: `1px solid ${BORDER}`, gap: 12 }}>
+        <div style={{ minWidth: 0, overflow: "hidden" }}>
+          <span style={{ fontWeight: 900, fontSize: isMobile ? 15 : 18, letterSpacing: -0.5, display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{business.name}</span>
+          <div style={{ display: "flex", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
+            <span style={{ ...badge(planColor(business.plan)) }}>{business.plan}</span>
+            <span style={{ ...badge(statusColor(business.subscription_status)) }}>{business.subscription_status}</span>
+          </div>
         </div>
         <button
           onClick={signOut}
-          style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "8px 18px", color: MUTED, cursor: "pointer", fontSize: 13 }}
+          style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "8px 14px", color: MUTED, cursor: "pointer", fontSize: 13, flexShrink: 0 }}
         >
           Sign out
         </button>
       </nav>
 
-      <div style={{ maxWidth: 960, margin: "0 auto", padding: "36px 24px", display: "flex", flexDirection: "column", gap: 28 }}>
+      <div style={{ maxWidth: 960, margin: "0 auto", padding: isMobile ? "20px 16px" : "36px 24px", display: "flex", flexDirection: "column", gap: 28 }}>
 
         {/* Setup checklist */}
         {!allDone && (
@@ -630,7 +639,7 @@ export default function DashboardPage() {
 
         {/* Tabs */}
         <div>
-          <div style={{ display: "flex", gap: 0, borderBottom: `1px solid ${BORDER}`, marginBottom: 24 }}>
+          <div style={{ display: "flex", gap: 0, borderBottom: `1px solid ${BORDER}`, marginBottom: 24, overflowX: "auto", scrollbarWidth: "none", WebkitOverflowScrolling: "touch" } as React.CSSProperties}>
             {(["tables", "menu", "orders", "financials"] as Tab[]).map((t) => (
               <button
                 key={t}
@@ -640,13 +649,15 @@ export default function DashboardPage() {
                   border: "none",
                   borderBottom: tab === t ? `2px solid ${ACCENT}` : "2px solid transparent",
                   color: tab === t ? ACCENT : MUTED,
-                  padding: "12px 24px",
+                  padding: isMobile ? "10px 14px" : "12px 24px",
                   fontWeight: 700,
-                  fontSize: 14,
+                  fontSize: isMobile ? 13 : 14,
                   cursor: "pointer",
                   textTransform: "capitalize",
                   letterSpacing: 0.5,
                   transition: "color 0.15s",
+                  whiteSpace: "nowrap",
+                  flexShrink: 0,
                 }}
               >
                 {t}
@@ -890,7 +901,7 @@ export default function DashboardPage() {
                   </p>
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                     {openTabs.map((tab) => (
-                      <div key={tab.id} style={{ ...card, padding: "14px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", borderColor: ACCENT + "44" }}>
+                      <div key={tab.id} style={{ ...card, padding: "14px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", borderColor: ACCENT + "44", flexWrap: "wrap", gap: 10 }}>
                         <div>
                           <div style={{ fontWeight: 700, fontSize: 15 }}>{tab.table_name}</div>
                           <div style={{ color: MUTED, fontSize: 12, marginTop: 2 }}>
@@ -926,7 +937,7 @@ export default function DashboardPage() {
                         {/* Order header row — click to expand */}
                         <div
                           onClick={() => toggleOrder(order.id)}
-                          style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", cursor: "pointer" }}
+                          style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", cursor: "pointer", gap: 12 }}
                         >
                           <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
                             <span style={badge(statusColor)}>{order.status}</span>
