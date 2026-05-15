@@ -296,7 +296,7 @@ export default function AdminPage() {
     }
     if (!locs.length) { setPrintingQr(null); return; }
 
-    // High-res branded QR codes: gold on dark, scale=10 for print quality
+    // High-res branded QRs: gold on dark, scale=10
     const entries = await Promise.all(
       locs.map(async (loc) => {
         const url     = `${APP_URL}/scan/${biz.slug}?table=${loc.id}`;
@@ -308,117 +308,189 @@ export default function AdminPage() {
       })
     );
 
-    // QRServe logo components (pure HTML, no image deps)
-    const finder = (sz: number) => {
-      const inner = Math.round(sz * 0.57);
-      const center = Math.round(inner * 0.5);
-      return `<div style="width:${sz}px;height:${sz}px;background:#E8C547;border-radius:${Math.round(sz*0.14)}px;flex-shrink:0">` +
-               `<div style="margin:${Math.round((sz-inner)/2)}px;width:${inner}px;height:${inner}px;background:#080808;border-radius:${Math.round(inner*0.12)}px">` +
-                 `<div style="margin:${Math.round((inner-center)/2)}px;width:${center}px;height:${center}px;background:#E8C547;border-radius:${Math.round(center*0.15)}px"></div>` +
-               `</div>` +
-             `</div>`;
-    };
-    const qrMark = (sz: number) => {
-      const gap = Math.round(sz * 0.21);
-      return `<div style="display:flex;flex-direction:column;gap:${gap}px;flex-shrink:0">` +
-               `<div style="display:flex;gap:${gap}px">${finder(sz)}${finder(sz)}</div>` +
-               `<div style="display:flex;gap:${gap}px">${finder(sz)}<div style="width:${sz}px"></div></div>` +
-             `</div>`;
-    };
+    // ── jsPDF setup ──────────────────────────────────────────────────────
+    // FedEx Office Quick Postcard: 4×6" + 0.125" bleed on all sides
+    // CMYK-equivalent colours used for DeviceRGB output (standard PDF)
+    //   #080808 → CMYK(0,0,0,97)   #E8C547 → CMYK(0,15,69,9)
+    //   #F0EDE8 → CMYK(0,2,3,6)
+    const { jsPDF } = await import("jspdf");
 
-    // One row per table: [FRONT 4"×3"] [BACK 4"×3"]
-    const pairs = entries.map(({ loc, dataUrl, url }) => {
-      const label = loc.label ?? loc.name;
-      return `
-<div style="display:flex;gap:0.12in;margin-bottom:0.12in;break-inside:avoid;page-break-inside:avoid">
+    const BLEED  = 0.125;
+    const W      = 4 + BLEED * 2;   // 4.25"
+    const H      = 6 + BLEED * 2;   // 6.25"
+    const PAD    = BLEED + 0.18;     // safe-area left/right padding
+    const CX     = W / 2;           // horizontal centre
 
-  <!-- FRONT -->
-  <div style="
-    width:4in;height:3in;background:#080808;border-radius:10px;overflow:hidden;
-    display:flex;flex-direction:column;align-items:center;
-    padding:0.17in 0.2in 0.15in;flex-shrink:0;
-    -webkit-print-color-adjust:exact;print-color-adjust:exact;">
+    // Brand colours as [r,g,b]
+    const GOLD   = [232, 197,  71] as const;
+    const DARK   = [  8,   8,   8] as const;
+    const LIGHT  = [240, 237, 232] as const;
+    const MUTED  = [110, 105,  88] as const;
+    const FGOLD  = [ 80,  68,  18] as const; // faded gold for back
 
-    <!-- Logo row -->
-    <div style="width:100%;display:flex;align-items:center;gap:7px;margin-bottom:0.08in">
-      ${qrMark(13)}
-      <span style="font-size:11px;font-weight:900;color:#F0EDE8;letter-spacing:1px;line-height:1">QRServe</span>
-    </div>
+    const doc = new jsPDF({ orientation: "portrait", unit: "in", format: [W, H] });
 
-    <!-- Restaurant name -->
-    <div style="font-size:16px;font-weight:900;color:#F0EDE8;letter-spacing:-0.3px;text-align:center;line-height:1.2;margin-bottom:0.06in;max-width:3.4in">
-      ${biz.name}
-    </div>
+    // ── Drawing helpers ──────────────────────────────────────────────────
 
-    <!-- QR code -->
-    <div style="flex:1;display:flex;align-items:center;justify-content:center">
-      <img src="${dataUrl}" alt="${label}" style="height:1.55in;width:1.55in;border-radius:8px;image-rendering:crisp-edges"/>
-    </div>
-
-    <!-- CTA text -->
-    <div style="font-size:8px;color:rgba(240,237,232,0.55);letter-spacing:0.8px;text-align:center;margin-top:0.05in;margin-bottom:0.07in">
-      Scan to order &mdash; No app required
-    </div>
-
-    <!-- Table pill -->
-    <div style="background:#E8C547;color:#080808;font-size:8.5px;font-weight:900;letter-spacing:2.5px;padding:4px 16px;border-radius:30px">
-      ${label.toUpperCase()}
-    </div>
-  </div>
-
-  <!-- BACK -->
-  <div style="
-    width:4in;height:3in;background:#080808;border-radius:10px;overflow:hidden;
-    display:flex;flex-direction:column;align-items:center;justify-content:center;
-    padding:0.22in 0.25in;flex-shrink:0;text-align:center;
-    -webkit-print-color-adjust:exact;print-color-adjust:exact;">
-
-    <div style="font-size:10px;color:rgba(232,197,71,0.5);letter-spacing:5px;text-transform:uppercase;margin-bottom:0.1in">
-      Scan &middot; Order &middot; Enjoy
-    </div>
-
-    <div style="font-size:26px;font-weight:900;color:#F0EDE8;letter-spacing:-0.8px;line-height:1.1;margin-bottom:0.12in;max-width:3.3in">
-      ${biz.name}
-    </div>
-
-    <div style="font-size:9px;color:#E8C547;font-family:monospace;letter-spacing:0.3px;word-break:break-all;margin-bottom:auto">
-      ${url}
-    </div>
-
-    <div style="display:flex;align-items:center;gap:6px;font-size:8px;color:rgba(240,237,232,0.35)">
-      ${qrMark(9)}
-      <span style="letter-spacing:0.5px">Powered by QRServe</span>
-    </div>
-  </div>
-
-</div>`;
-    }).join("");
-
-    const printHtml = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8"/>
-  <title>${biz.name} — Table QR Postcards</title>
-  <style>
-    @page { size: letter portrait; margin: 0.2in; }
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-      background: #f0f0f0;
+    /** Draw one QR finder pattern square */
+    function finder(x: number, y: number, s: number) {
+      const brd = s * 0.143;
+      const cSz = s * 0.286;
+      const r   = s * 0.15;
+      doc.setFillColor(...GOLD);
+      doc.roundedRect(x, y, s, s, r, r, "F");
+      doc.setFillColor(...DARK);
+      doc.roundedRect(x + brd, y + brd, s - 2*brd, s - 2*brd, r*0.5, r*0.5, "F");
+      doc.setFillColor(...GOLD);
+      doc.roundedRect(x + s*0.357, y + s*0.357, cSz, cSz, r*0.3, r*0.3, "F");
     }
-    @media print {
-      body { background: transparent; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    }
-  </style>
-</head>
-<body>
-  ${pairs}
-  <script>window.addEventListener("load", function(){ window.print(); });</script>
-</body>
-</html>`;
 
-    const w = window.open("", "_blank");
-    if (w) { w.document.write(printHtml); w.document.close(); }
+    /** Draw QR mark (3 finder patterns) */
+    function qrMark(x: number, y: number, s: number) {
+      const gap = s * 0.22;
+      finder(x, y, s);                      // TL
+      finder(x + s + gap, y, s);            // TR
+      finder(x, y + s + gap, s);            // BL
+      // A couple of data dots
+      const dot = s * 0.22;
+      doc.setFillColor(...GOLD);
+      doc.roundedRect(x + s + gap, y + s + gap, dot, dot, dot*0.2, dot*0.2, "F");
+    }
+
+    /** Crop marks at all four corners */
+    function cropMarks() {
+      doc.setDrawColor(120, 120, 120);
+      doc.setLineWidth(0.004);
+      const mk = 0.08;
+      const corners = [
+        { hx1: 0,      hy: BLEED,   vx: BLEED,   vy1: 0,      dir: 1  },
+        { hx1: W-mk,   hy: BLEED,   vx: W-BLEED, vy1: 0,      dir: 1  },
+        { hx1: 0,      hy: H-BLEED, vx: BLEED,   vy1: H-mk,   dir: -1 },
+        { hx1: W-mk,   hy: H-BLEED, vx: W-BLEED, vy1: H-mk,   dir: -1 },
+      ];
+      for (const c of corners) {
+        doc.line(c.hx1, c.hy, c.hx1 + mk, c.hy);
+        doc.line(c.vx,  c.vy1, c.vx, c.vy1 + mk);
+      }
+    }
+
+    // ── Front page ───────────────────────────────────────────────────────
+    function drawFront(entry: { loc: TableLoc; dataUrl: string }) {
+      const label = entry.loc.label ?? entry.loc.name;
+
+      // Full-bleed background
+      doc.setFillColor(...DARK);
+      doc.rect(0, 0, W, H, "F");
+
+      // ── Logo row ──────────────────────────────────────────────────────
+      const logoY = PAD;
+      const fSz   = 0.115;
+      qrMark(PAD, logoY, fSz);
+      const markW = fSz * 2 + fSz * 0.22;
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(...LIGHT);
+      doc.text("QRServe", PAD + markW + 0.06, logoY + fSz * 1.45);
+
+      // ── Thin gold rule ─────────────────────────────────────────────────
+      const ruleY = logoY + fSz * 2 + fSz * 0.22 + 0.1;
+      doc.setDrawColor(...FGOLD);
+      doc.setLineWidth(0.006);
+      doc.line(PAD, ruleY, W - PAD, ruleY);
+
+      // ── Restaurant name ────────────────────────────────────────────────
+      const nameY = ruleY + 0.3;
+      doc.setFontSize(18);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(...LIGHT);
+      doc.text(biz.name, CX, nameY, { align: "center", maxWidth: W - PAD * 2 });
+
+      // ── QR code ────────────────────────────────────────────────────────
+      const qrSz  = 2.1;
+      const qrX   = (W - qrSz) / 2;
+      const qrY   = nameY + 0.22;
+      doc.addImage(entry.dataUrl, "PNG", qrX, qrY, qrSz, qrSz);
+
+      // ── CTA text ───────────────────────────────────────────────────────
+      const ctaY = qrY + qrSz + 0.18;
+      doc.setFontSize(7.5);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(...MUTED);
+      doc.text("Scan to order — No app required", CX, ctaY, { align: "center" });
+
+      // ── Table pill ─────────────────────────────────────────────────────
+      const pillLabel = label.toUpperCase();
+      const pillH     = 0.19;
+      const pillY     = H - BLEED - 0.22;
+      doc.setFontSize(7.5);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(...DARK);
+      const pillW = doc.getTextWidth(pillLabel) + 0.22;
+      doc.setFillColor(...GOLD);
+      doc.roundedRect(CX - pillW/2, pillY - pillH + 0.04, pillW, pillH, pillH/2, pillH/2, "F");
+      doc.text(pillLabel, CX, pillY, { align: "center" });
+
+      cropMarks();
+    }
+
+    // ── Back page ────────────────────────────────────────────────────────
+    function drawBack(entry: { loc: TableLoc; url: string }) {
+      // Full-bleed background
+      doc.setFillColor(...DARK);
+      doc.rect(0, 0, W, H, "F");
+
+      // Vertical gold accent bar (left of centre)
+      doc.setFillColor(...GOLD);
+      doc.rect(PAD, BLEED + 0.5, 0.018, H - BLEED*2 - 1.0, "F");
+
+      // ── Tagline ────────────────────────────────────────────────────────
+      doc.setFontSize(7);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(...FGOLD);
+      doc.text("SCAN · ORDER · ENJOY", CX, H*0.37, { align: "center", charSpace: 2.5 });
+
+      // ── Restaurant name ────────────────────────────────────────────────
+      doc.setFontSize(28);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(...LIGHT);
+      doc.text(biz.name, CX, H*0.50, { align: "center", maxWidth: W - PAD * 2 });
+
+      // ── Scan URL ───────────────────────────────────────────────────────
+      doc.setFontSize(7.5);
+      doc.setFont("courier", "normal");
+      doc.setTextColor(...GOLD);
+      doc.text(entry.url, CX, H*0.61, { align: "center", maxWidth: W - PAD * 2 });
+
+      // ── Powered by ─────────────────────────────────────────────────────
+      const pwY  = H - BLEED - 0.22;
+      const pfSz = 0.07;
+      const mkW  = pfSz * 2 + pfSz * 0.22;
+      qrMark(CX - mkW/2 - 0.28, pwY - pfSz * 2.4, pfSz);
+      doc.setFontSize(7);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(68, 64, 50);
+      doc.text("Powered by QRServe", CX + 0.06, pwY, { align: "center" });
+
+      cropMarks();
+    }
+
+    // ── Build pages (Front + Back per table) ─────────────────────────────
+    for (let i = 0; i < entries.length; i++) {
+      if (i > 0) doc.addPage();
+      drawFront(entries[i]);
+      doc.addPage();
+      drawBack(entries[i]);
+    }
+
+    // ── Output: autoPrint + open in new tab ───────────────────────────────
+    // autoPrint embeds a JS action so the PDF viewer shows the print dialog.
+    (doc as any).autoPrint();
+    const pdfBlob = doc.output("blob");
+    const pdfUrl  = URL.createObjectURL(pdfBlob);
+    window.open(pdfUrl, "_blank");
+    // Revoke after 2 min — long enough for the new tab to load the PDF
+    setTimeout(() => URL.revokeObjectURL(pdfUrl), 120_000);
+
     setPrintingQr(null);
   }
 
