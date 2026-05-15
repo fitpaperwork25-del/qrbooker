@@ -82,8 +82,9 @@ export default function AdminPage() {
   const [businesses, setBusinesses] = useState<AdminBiz[]>([]);
   const [notes,      setNotes]      = useState<Record<string, AdminNote[]>>({});
   const [qrCodes,    setQrCodes]    = useState<Record<string, string>>({});
-  const [loading,    setLoading]    = useState(true);
-  const [error,      setError]      = useState("");
+  const [loading,         setLoading]         = useState(true);
+  const [error,           setError]           = useState("");
+  const [loadingDashboard, setLoadingDashboard] = useState<string | null>(null);
 
   // Per-business UI state
   const [pinInputs,     setPinInputs]     = useState<Record<string, string>>({});
@@ -183,6 +184,20 @@ export default function AdminPage() {
     await navigator.clipboard.writeText(text);
     setCopied(key);
     setTimeout(() => setCopied(null), 1500);
+  }
+
+  async function openOwnerDashboard(biz: AdminBiz) {
+    if (!biz.owner_email) return;
+    setLoadingDashboard(biz.id);
+    const jwt = session?.access_token;
+    const res = await fetch("/api/admin-get-magic-link", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${jwt}` },
+      body: JSON.stringify({ email: biz.owner_email }),
+    });
+    const data = await res.json();
+    setLoadingDashboard(null);
+    if (data.link) window.open(data.link, "_blank");
   }
 
   async function createClient() {
@@ -344,15 +359,32 @@ export default function AdminPage() {
                           Open ↗
                         </a>
                       </div>
-                      {/* Staff login */}
+                      {/* Staff login — slug+pin pre-filled via query params */}
                       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                         <span style={{ fontSize: 12, color: MUTED, fontFamily: "monospace", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          Slug: <span style={{ color: TEXT }}>{biz.slug}</span> · PIN: <span style={{ color: TEXT }}>{biz.staff_pin ?? "—"}</span>
+                          /staff-login?slug=<span style={{ color: TEXT }}>{biz.slug}</span>&amp;pin=<span style={{ color: TEXT }}>{biz.staff_pin ?? "—"}</span>
                         </span>
-                        <a href={`${APP_URL}/staff-login`} target="_blank" rel="noreferrer"
+                        <button onClick={() => copy(`${APP_URL}/staff-login?slug=${biz.slug}&pin=${biz.staff_pin ?? ""}`, `stafflink-${biz.id}`)}
+                          style={{ background: copied === `stafflink-${biz.id}` ? GREEN + "22" : INNER, border: `1px solid ${BORDER}`, borderRadius: 6, padding: "4px 10px", color: copied === `stafflink-${biz.id}` ? GREEN : MUTED, fontSize: 11, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>
+                          {copied === `stafflink-${biz.id}` ? "✓ Copied" : "Copy"}
+                        </button>
+                        <a href={`${APP_URL}/staff-login?slug=${biz.slug}&pin=${biz.staff_pin ?? ""}`} target="_blank" rel="noreferrer"
                            style={{ background: INNER, border: `1px solid ${BORDER}`, borderRadius: 6, padding: "4px 10px", color: MUTED, fontSize: 11, fontWeight: 700, textDecoration: "none", flexShrink: 0 }}>
                           Staff ↗
                         </a>
+                      </div>
+                      {/* Owner dashboard — opens via magic link */}
+                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                        <span style={{ fontSize: 12, color: MUTED, fontFamily: "monospace", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {biz.owner_email ?? "no email on file"}
+                        </span>
+                        <button
+                          onClick={() => openOwnerDashboard(biz)}
+                          disabled={!biz.owner_email || loadingDashboard === biz.id}
+                          title="Generates a magic link — opens owner's dashboard in a new tab"
+                          style={{ background: INNER, border: `1px solid ${BORDER}`, borderRadius: 6, padding: "4px 10px", color: biz.owner_email ? BLUE : MUTED, fontSize: 11, fontWeight: 700, cursor: biz.owner_email ? "pointer" : "not-allowed", flexShrink: 0 }}>
+                          {loadingDashboard === biz.id ? "…" : "Dashboard ↗"}
+                        </button>
                       </div>
                     </div>
                   </div>

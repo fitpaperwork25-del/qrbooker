@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { staffLogin } from "../lib/useStaffAuth";
 import { ACCENT, BG, SURFACE, BORDER, TEXT, MUTED, RED } from "../constants/theme";
 
@@ -19,18 +19,23 @@ const inputStyle: React.CSSProperties = {
 export default function StaffLoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const demo = location.state as { demoSlug?: string; demoPin?: string } | null;
+  const [searchParams] = useSearchParams();
 
-  const [slug, setSlug] = useState(demo?.demoSlug ?? "");
-  const [pin, setPin]   = useState(demo?.demoPin  ?? "");
+  // Pre-fill from router state (Try Demo) or URL query params (Admin Deploy Kit)
+  const demo    = location.state as { demoSlug?: string; demoPin?: string } | null;
+  const initSlug = demo?.demoSlug ?? searchParams.get("slug") ?? "";
+  const initPin  = demo?.demoPin  ?? searchParams.get("pin")  ?? "";
+
+  const [slug, setSlug] = useState(initSlug);
+  const [pin, setPin]   = useState(initPin);
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState("");
 
-  // Auto-submit when navigated here from the Try Demo dropdown
+  // Auto-submit when credentials are pre-filled (Demo or Admin Deploy Kit)
   useEffect(() => {
-    if (!demo?.demoSlug || !demo?.demoPin) return;
+    if (!initSlug || !initPin) return;
     setLoading(true);
-    staffLogin(demo.demoSlug, demo.demoPin).then(({ error: err }) => {
+    staffLogin(initSlug, initPin).then(({ error: err }) => {
       if (err) { setError(err); setLoading(false); }
       else navigate("/staff");
     });
