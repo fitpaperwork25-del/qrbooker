@@ -253,6 +253,76 @@ export default function LandingPage() {
         </div>
       </main>
 
+      {/* How it works */}
+      <section style={{ borderTop: `1px solid ${BORDER}`, padding: "80px 24px" }}>
+        <div style={{ maxWidth: 960, margin: "0 auto" }}>
+          <p style={{ fontSize: 11, letterSpacing: 4, color: ACCENT, fontWeight: 700, textTransform: "uppercase", textAlign: "center", marginBottom: 12 }}>
+            How it works
+          </p>
+          <h2 style={{ fontSize: "clamp(26px, 4vw, 38px)", fontWeight: 900, color: TEXT, textAlign: "center", margin: "0 0 56px", letterSpacing: -0.5 }}>
+            Up and running in under an hour.
+          </h2>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 0 }}>
+            {([
+              {
+                n:    "01",
+                head: "Register your restaurant",
+                sub:  "Create your account in 2 minutes. Your menu dashboard is ready immediately — no setup call needed.",
+              },
+              {
+                n:    "02",
+                head: "Add tables & menu",
+                sub:  "Add one location per table, then build your menu with categories and items. Everything live instantly.",
+              },
+              {
+                n:    "03",
+                head: "Print your QR code",
+                sub:  "Download a QR code per table from your dashboard. Print, laminate, and place on the table.",
+              },
+              {
+                n:    "04",
+                head: "Customers scan & order",
+                sub:  "Guests scan the code, browse your menu, and place orders — no app, no account, no friction.",
+              },
+            ]).map((step, i, arr) => (
+              <div
+                key={step.n}
+                style={{
+                  padding:      "0 32px 0 0",
+                  borderLeft:   i > 0 ? `1px solid ${BORDER}` : "none",
+                  paddingLeft:  i > 0 ? 32 : 0,
+                  marginBottom: 0,
+                }}
+              >
+                {/* Step number */}
+                <div style={{
+                  display:        "inline-flex",
+                  alignItems:     "center",
+                  justifyContent: "center",
+                  width:          44,
+                  height:         44,
+                  borderRadius:   "50%",
+                  background:     ACCENT + "18",
+                  border:         `1.5px solid ${ACCENT}44`,
+                  marginBottom:   20,
+                }}>
+                  <span style={{ fontWeight: 900, fontSize: 13, color: ACCENT, fontFamily: "monospace", letterSpacing: 0 }}>{step.n}</span>
+                </div>
+
+                {/* Connector line (desktop: right edge, hidden on last) */}
+                <div style={{ fontWeight: 800, fontSize: 16, color: TEXT, marginBottom: 10, lineHeight: 1.3 }}>
+                  {step.head}
+                </div>
+                <p style={{ fontSize: 13, color: MUTED, lineHeight: 1.7, margin: 0 }}>
+                  {step.sub}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Feature strip */}
       <div style={{ borderTop: `1px solid ${BORDER}`, display: "flex", justifyContent: "center", flexWrap: "wrap" }}>
         {(
