@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import AuthGuard from "./components/AuthGuard";
 import StaffGuard from "./components/StaffGuard";
+import ErrorBoundary from "./components/ErrorBoundary";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
@@ -43,7 +44,9 @@ export default function App() {
         path="/dashboard"
         element={
           <AuthGuard>
-            <DashboardPage />
+            <ErrorBoundary>
+              <DashboardPage />
+            </ErrorBoundary>
           </AuthGuard>
         }
       />
