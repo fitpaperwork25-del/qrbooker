@@ -1,12 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "../lib/supabase";
+import { staffLogin } from "../lib/useStaffAuth";
 
-const ACCENT = "#E8C547";
-const BG = "#080808";
-const BORDER = "rgba(255,255,255,0.08)";
-const TEXT = "#F0EDE8";
-const MUTED = "#666666";
+const ACCENT  = "#E8C547";
+const BG      = "#080808";
+const BORDER  = "rgba(255,255,255,0.08)";
+const TEXT    = "#F0EDE8";
+const MUTED   = "#666666";
+const SURFACE = "#111111";
 
 function QRMark() {
   return (
@@ -29,11 +32,142 @@ function QRMark() {
   );
 }
 
+// ── Demo dropdown ─────────────────────────────────────────────────────────────
+
+type DemoLoading = "customer" | "staff" | "owner" | null;
+
+interface DemoDropdownProps {
+  onClose: () => void;
+}
+
+function DemoDropdown({ onClose }: DemoDropdownProps) {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState<DemoLoading>(null);
+  const [error, setError] = useState("");
+
+  async function goCustomer() {
+    onClose();
+    navigate("/scan/demo-restaurant");
+  }
+
+  async function goStaff() {
+    setLoading("staff");
+    setError("");
+    const { error: err } = await staffLogin("demo-restaurant", "1234");
+    if (err) { setError(err); setLoading(null); return; }
+    onClose();
+    navigate("/staff");
+  }
+
+  async function goOwner() {
+    setLoading("owner");
+    setError("");
+    const { error: err } = await supabase.auth.signInWithPassword({
+      email: "demo@qrserve.app",
+      password: "Demo2026",
+    });
+    if (err) { setError(err.message); setLoading(null); return; }
+    onClose();
+    navigate("/dashboard");
+  }
+
+  const items = [
+    {
+      key:     "customer" as const,
+      icon:    "📱",
+      label:   "Customer View",
+      sub:     "Scan a table, browse the menu & order",
+      action:  goCustomer,
+      color:   "#4CAF50",
+    },
+    {
+      key:     "staff" as const,
+      icon:    "👨‍🍳",
+      label:   "Staff Kitchen",
+      sub:     "Kitchen display — manage live orders",
+      action:  goStaff,
+      color:   "#F97316",
+    },
+    {
+      key:     "owner" as const,
+      icon:    "📊",
+      label:   "Owner Dashboard",
+      sub:     "Full business management view",
+      action:  goOwner,
+      color:   ACCENT,
+    },
+  ];
+
+  return (
+    <div
+      style={{
+        position:    "absolute",
+        top:         "calc(100% + 8px)",
+        right:       0,
+        zIndex:      100,
+        background:  SURFACE,
+        border:      `1px solid ${BORDER}`,
+        borderRadius: 14,
+        padding:     8,
+        minWidth:    280,
+        boxShadow:   "0 16px 48px rgba(0,0,0,0.6)",
+      }}
+    >
+      {items.map((item, i) => (
+        <button
+          key={item.key}
+          onClick={item.action}
+          disabled={loading !== null}
+          style={{
+            display:        "flex",
+            alignItems:     "center",
+            gap:            14,
+            width:          "100%",
+            background:     loading === item.key ? item.color + "18" : "transparent",
+            border:         "none",
+            borderRadius:   10,
+            padding:        "12px 14px",
+            cursor:         loading !== null ? "not-allowed" : "pointer",
+            textAlign:      "left",
+            marginBottom:   i < items.length - 1 ? 2 : 0,
+            transition:     "background 0.12s",
+          }}
+          onMouseEnter={(e) => {
+            if (!loading) (e.currentTarget as HTMLButtonElement).style.background = item.color + "14";
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.background =
+              loading === item.key ? item.color + "18" : "transparent";
+          }}
+        >
+          <span style={{ fontSize: 22, flexShrink: 0 }}>{item.icon}</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 700, fontSize: 14, color: TEXT }}>
+              {loading === item.key ? "Loading…" : item.label}
+            </div>
+            <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>{item.sub}</div>
+          </div>
+          <span style={{ color: item.color, fontSize: 16, flexShrink: 0 }}>→</span>
+        </button>
+      ))}
+      {error && (
+        <p style={{ color: "#f44336", fontSize: 12, margin: "6px 14px 2px", padding: 0 }}>
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
+
 export default function LandingPage() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
+  const [email, setEmail]       = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState("");
+  const [demoOpen, setDemoOpen]   = useState(false);
+  const demoRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     QRCode.toDataURL("https://qrserve-v3.vercel.app", {
@@ -42,6 +176,18 @@ export default function LandingPage() {
       color: { dark: "#E8C547", light: "#080808" },
     }).then(setQrDataUrl);
   }, []);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!demoOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (demoRef.current && !demoRef.current.contains(e.target as Node)) {
+        setDemoOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [demoOpen]);
 
   function handleWaitlist(e: React.FormEvent) {
     e.preventDefault();
@@ -58,7 +204,31 @@ export default function LandingPage() {
           <QRMark />
           <span style={{ fontWeight: 800, fontSize: 17, letterSpacing: 1, color: TEXT }}>QRServe</span>
         </div>
-        <div style={{ display: "flex", gap: 12 }}>
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          {/* Try Demo */}
+          <div ref={demoRef} style={{ position: "relative" }}>
+            <button
+              onClick={() => setDemoOpen((o) => !o)}
+              style={{
+                background:   demoOpen ? ACCENT + "22" : "none",
+                border:       `1px solid ${ACCENT}44`,
+                borderRadius: 8,
+                padding:      "8px 14px",
+                color:        ACCENT,
+                cursor:       "pointer",
+                fontSize:     13,
+                fontWeight:   700,
+                display:      "flex",
+                alignItems:   "center",
+                gap:          6,
+              }}
+            >
+              Try Demo
+              <span style={{ fontSize: 10, opacity: 0.8 }}>{demoOpen ? "▲" : "▼"}</span>
+            </button>
+            {demoOpen && <DemoDropdown onClose={() => setDemoOpen(false)} />}
+          </div>
+
           <button
             onClick={() => navigate("/staff-login")}
             style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "8px 16px", color: MUTED, cursor: "pointer", fontSize: 13, fontWeight: 600 }}
@@ -95,10 +265,10 @@ export default function LandingPage() {
             Get started free →
           </button>
           <button
-            onClick={() => navigate("/login")}
-            style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 10, padding: "16px 36px", color: TEXT, cursor: "pointer", fontSize: 16, fontWeight: 600 }}
+            onClick={() => setDemoOpen((o) => !o)}
+            style={{ background: "none", border: `1px solid ${ACCENT}66`, borderRadius: 10, padding: "16px 36px", color: ACCENT, cursor: "pointer", fontSize: 16, fontWeight: 700 }}
           >
-            Sign in
+            Try Demo
           </button>
         </div>
       </main>
@@ -108,9 +278,9 @@ export default function LandingPage() {
         {(
           [
             { label: "Instant QR codes", sub: "One per table or room" },
-            { label: "Live orders", sub: "Real-time staff dashboard" },
-            { label: "No app required", sub: "Customers scan & go" },
-            { label: "Stripe payments", sub: "Live mode, no setup fees" },
+            { label: "Live orders",      sub: "Real-time staff dashboard" },
+            { label: "No app required",  sub: "Customers scan & go" },
+            { label: "Stripe payments",  sub: "Live mode, no setup fees" },
           ] as const
         ).map((f) => (
           <div key={f.label} style={{ padding: "28px 40px", borderRight: `1px solid ${BORDER}`, textAlign: "center", minWidth: 180 }}>
@@ -144,29 +314,17 @@ export default function LandingPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               style={{
-                flex: 1,
-                background: "#111",
-                border: `1px solid ${BORDER}`,
-                borderRight: "none",
-                borderRadius: "10px 0 0 10px",
-                padding: "14px 18px",
-                color: TEXT,
-                fontSize: 14,
-                outline: "none",
+                flex: 1, background: "#111", border: `1px solid ${BORDER}`,
+                borderRight: "none", borderRadius: "10px 0 0 10px",
+                padding: "14px 18px", color: TEXT, fontSize: 14, outline: "none",
               }}
             />
             <button
               type="submit"
               style={{
-                background: ACCENT,
-                border: "none",
-                borderRadius: "0 10px 10px 0",
-                padding: "14px 24px",
-                color: BG,
-                fontWeight: 800,
-                fontSize: 14,
-                cursor: "pointer",
-                whiteSpace: "nowrap",
+                background: ACCENT, border: "none", borderRadius: "0 10px 10px 0",
+                padding: "14px 24px", color: BG, fontWeight: 800, fontSize: 14,
+                cursor: "pointer", whiteSpace: "nowrap",
               }}
             >
               Notify me
@@ -199,7 +357,7 @@ export default function LandingPage() {
         <span style={{ fontSize: 13, color: MUTED }}>© 2026 QRServe</span>
         <div style={{ display: "flex", gap: 24 }}>
           <button onClick={() => navigate("/pricing")} style={{ background: "none", border: "none", color: MUTED, fontSize: 13, cursor: "pointer", padding: 0 }}>Pricing</button>
-          <button onClick={() => navigate("/terms")} style={{ background: "none", border: "none", color: MUTED, fontSize: 13, cursor: "pointer", padding: 0 }}>Terms</button>
+          <button onClick={() => navigate("/terms")}   style={{ background: "none", border: "none", color: MUTED, fontSize: 13, cursor: "pointer", padding: 0 }}>Terms</button>
           <button onClick={() => navigate("/privacy")} style={{ background: "none", border: "none", color: MUTED, fontSize: 13, cursor: "pointer", padding: 0 }}>Privacy</button>
         </div>
       </footer>
