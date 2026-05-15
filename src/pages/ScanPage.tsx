@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { anonSupabase as supabase } from '../lib/anonSupabase';
+import { supabase } from '../lib/supabase';
 
 export default function ScanPage() {
   const { bizId, locationId } = useParams();
