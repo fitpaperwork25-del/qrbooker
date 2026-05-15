@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { staffLogin } from "../lib/useStaffAuth";
 import { ACCENT, BG, SURFACE, BORDER, TEXT, MUTED, RED } from "../constants/theme";
 
@@ -18,10 +18,23 @@ const inputStyle: React.CSSProperties = {
 
 export default function StaffLoginPage() {
   const navigate = useNavigate();
-  const [slug, setSlug] = useState("");
-  const [pin, setPin] = useState("");
+  const location = useLocation();
+  const demo = location.state as { demoSlug?: string; demoPin?: string } | null;
+
+  const [slug, setSlug] = useState(demo?.demoSlug ?? "");
+  const [pin, setPin]   = useState(demo?.demoPin  ?? "");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError]     = useState("");
+
+  // Auto-submit when navigated here from the Try Demo dropdown
+  useEffect(() => {
+    if (!demo?.demoSlug || !demo?.demoPin) return;
+    setLoading(true);
+    staffLogin(demo.demoSlug, demo.demoPin).then(({ error: err }) => {
+      if (err) { setError(err); setLoading(false); }
+      else navigate("/staff");
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleLogin = async () => {
     if (!slug.trim()) { setError("Enter your restaurant ID."); return; }

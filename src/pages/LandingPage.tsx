@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../lib/supabase";
-import { staffLogin } from "../lib/useStaffAuth";
 
 const ACCENT  = "#E8C547";
 const BG      = "#080808";
@@ -34,38 +32,30 @@ function QRMark() {
 
 // ── Demo dropdown ─────────────────────────────────────────────────────────────
 
-type DemoLoading = "customer" | "staff" | "owner" | null;
-
 interface DemoDropdownProps {
   onClose: () => void;
 }
 
 function DemoDropdown({ onClose }: DemoDropdownProps) {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState<DemoLoading>(null);
 
   function goCustomer() {
     onClose();
     navigate("/scan/demo-restaurant");
   }
 
-  async function goStaff() {
-    setLoading("staff");
-    const { error } = await staffLogin("demo-restaurant", "1234");
-    if (error) { setLoading(null); return; }
+  function goStaff() {
     onClose();
-    navigate("/staff");
+    navigate("/staff-login", {
+      state: { demoSlug: "demo-restaurant", demoPin: "1234" },
+    });
   }
 
-  async function goOwner() {
-    setLoading("owner");
-    const { error } = await supabase.auth.signInWithPassword({
-      email: "demo@qrserve.app",
-      password: "Demo2026",
-    });
-    if (error) { setLoading(null); return; }
+  function goOwner() {
     onClose();
-    navigate("/dashboard");
+    navigate("/login", {
+      state: { from: "/dashboard", demoEmail: "demo@qrserve.app", demoPassword: "Demo2026" },
+    });
   }
 
   const items = [
@@ -114,33 +104,31 @@ function DemoDropdown({ onClose }: DemoDropdownProps) {
         <button
           key={item.key}
           onClick={item.action}
-          disabled={loading !== null}
           style={{
             display:        "flex",
             alignItems:     "center",
             gap:            14,
             width:          "100%",
-            background:     loading === item.key ? item.color + "18" : "transparent",
+            background:     "transparent",
             border:         "none",
             borderRadius:   10,
             padding:        "12px 14px",
-            cursor:         loading !== null ? "not-allowed" : "pointer",
+            cursor:         "pointer",
             textAlign:      "left",
             marginBottom:   i < items.length - 1 ? 2 : 0,
             transition:     "background 0.12s",
           }}
           onMouseEnter={(e) => {
-            if (!loading) (e.currentTarget as HTMLButtonElement).style.background = item.color + "14";
+            (e.currentTarget as HTMLButtonElement).style.background = item.color + "14";
           }}
           onMouseLeave={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.background =
-              loading === item.key ? item.color + "18" : "transparent";
+            (e.currentTarget as HTMLButtonElement).style.background = "transparent";
           }}
         >
           <span style={{ fontSize: 22, flexShrink: 0 }}>{item.icon}</span>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontWeight: 700, fontSize: 14, color: TEXT }}>
-              {loading === item.key ? "Loading…" : item.label}
+              {item.label}
             </div>
             <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>{item.sub}</div>
           </div>

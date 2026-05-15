@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../lib/useAuth";
 import { ACCENT, BG, BORDER, TEXT, MUTED, RED } from "../constants/theme";
@@ -45,11 +45,13 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { signIn } = useAuth();
-  const from = (location.state as { from?: string } | null)?.from ?? "/dashboard";
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const state = location.state as { from?: string; demoEmail?: string; demoPassword?: string } | null;
+  const from  = state?.from ?? "/dashboard";
+
+  const [email,    setEmail]    = useState(state?.demoEmail    ?? "");
+  const [password, setPassword] = useState(state?.demoPassword ?? "");
+  const [loading,  setLoading]  = useState(false);
+  const [error,    setError]    = useState("");
   const [focusedField, setFocusedField] = useState<string | null>(null);
 
   const handleSubmit = async () => {
@@ -71,6 +73,22 @@ export default function LoginPage() {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") handleSubmit();
   };
+
+  // Auto-submit when navigated here from the Try Demo dropdown
+  useEffect(() => {
+    if (!state?.demoEmail || !state?.demoPassword) return;
+    setLoading(true);
+    signIn(state.demoEmail, state.demoPassword).then((err) => {
+      if (err) {
+        setError(err.message === "Invalid login credentials"
+          ? "Incorrect email or password."
+          : err.message);
+        setLoading(false);
+      } else {
+        navigate(from, { replace: true });
+      }
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div
