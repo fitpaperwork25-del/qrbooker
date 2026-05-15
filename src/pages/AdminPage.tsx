@@ -282,7 +282,7 @@ export default function AdminPage() {
   async function printAllQrs(biz: AdminBiz) {
     setPrintingQr(biz.id);
 
-    // Load tables if not already cached
+    // Load tables lazily
     let locs = tablesByBiz[biz.id];
     if (!locs) {
       const { data } = await supabase
@@ -294,102 +294,125 @@ export default function AdminPage() {
       locs = (data ?? []) as TableLoc[];
       setTablesByBiz((prev) => ({ ...prev, [biz.id]: locs }));
     }
-
     if (!locs.length) { setPrintingQr(null); return; }
 
-    // Generate high-res black-on-white QR codes for print
+    // High-res branded QR codes: gold on dark, scale=10 for print quality
     const entries = await Promise.all(
       locs.map(async (loc) => {
         const url     = `${APP_URL}/scan/${biz.slug}?table=${loc.id}`;
         const dataUrl = await QRCode.toDataURL(url, {
-          width: 600, margin: 2,
-          color: { dark: "#000000", light: "#ffffff" },
+          scale: 10, margin: 1,
+          color: { dark: "#E8C547", light: "#080808" },
         });
         return { loc, dataUrl, url };
       })
     );
 
-    const rows = entries.map(({ loc, dataUrl, url }) => `
-      <div class="cell">
-        <img src="${dataUrl}" alt="${loc.label ?? loc.name}"/>
-        <div class="name">${loc.label ?? loc.name}</div>
-        <div class="scan-url">${url}</div>
-      </div>`).join("");
+    // QRServe logo components (pure HTML, no image deps)
+    const finder = (sz: number) => {
+      const inner = Math.round(sz * 0.57);
+      const center = Math.round(inner * 0.5);
+      return `<div style="width:${sz}px;height:${sz}px;background:#E8C547;border-radius:${Math.round(sz*0.14)}px;flex-shrink:0">` +
+               `<div style="margin:${Math.round((sz-inner)/2)}px;width:${inner}px;height:${inner}px;background:#080808;border-radius:${Math.round(inner*0.12)}px">` +
+                 `<div style="margin:${Math.round((inner-center)/2)}px;width:${center}px;height:${center}px;background:#E8C547;border-radius:${Math.round(center*0.15)}px"></div>` +
+               `</div>` +
+             `</div>`;
+    };
+    const qrMark = (sz: number) => {
+      const gap = Math.round(sz * 0.21);
+      return `<div style="display:flex;flex-direction:column;gap:${gap}px;flex-shrink:0">` +
+               `<div style="display:flex;gap:${gap}px">${finder(sz)}${finder(sz)}</div>` +
+               `<div style="display:flex;gap:${gap}px">${finder(sz)}<div style="width:${sz}px"></div></div>` +
+             `</div>`;
+    };
+
+    // One row per table: [FRONT 4"×3"] [BACK 4"×3"]
+    const pairs = entries.map(({ loc, dataUrl, url }) => {
+      const label = loc.label ?? loc.name;
+      return `
+<div style="display:flex;gap:0.12in;margin-bottom:0.12in;break-inside:avoid;page-break-inside:avoid">
+
+  <!-- FRONT -->
+  <div style="
+    width:4in;height:3in;background:#080808;border-radius:10px;overflow:hidden;
+    display:flex;flex-direction:column;align-items:center;
+    padding:0.17in 0.2in 0.15in;flex-shrink:0;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact;">
+
+    <!-- Logo row -->
+    <div style="width:100%;display:flex;align-items:center;gap:7px;margin-bottom:0.08in">
+      ${qrMark(13)}
+      <span style="font-size:11px;font-weight:900;color:#F0EDE8;letter-spacing:1px;line-height:1">QRServe</span>
+    </div>
+
+    <!-- Restaurant name -->
+    <div style="font-size:16px;font-weight:900;color:#F0EDE8;letter-spacing:-0.3px;text-align:center;line-height:1.2;margin-bottom:0.06in;max-width:3.4in">
+      ${biz.name}
+    </div>
+
+    <!-- QR code -->
+    <div style="flex:1;display:flex;align-items:center;justify-content:center">
+      <img src="${dataUrl}" alt="${label}" style="height:1.55in;width:1.55in;border-radius:8px;image-rendering:crisp-edges"/>
+    </div>
+
+    <!-- CTA text -->
+    <div style="font-size:8px;color:rgba(240,237,232,0.55);letter-spacing:0.8px;text-align:center;margin-top:0.05in;margin-bottom:0.07in">
+      Scan to order &mdash; No app required
+    </div>
+
+    <!-- Table pill -->
+    <div style="background:#E8C547;color:#080808;font-size:8.5px;font-weight:900;letter-spacing:2.5px;padding:4px 16px;border-radius:30px">
+      ${label.toUpperCase()}
+    </div>
+  </div>
+
+  <!-- BACK -->
+  <div style="
+    width:4in;height:3in;background:#080808;border-radius:10px;overflow:hidden;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    padding:0.22in 0.25in;flex-shrink:0;text-align:center;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact;">
+
+    <div style="font-size:10px;color:rgba(232,197,71,0.5);letter-spacing:5px;text-transform:uppercase;margin-bottom:0.1in">
+      Scan &middot; Order &middot; Enjoy
+    </div>
+
+    <div style="font-size:26px;font-weight:900;color:#F0EDE8;letter-spacing:-0.8px;line-height:1.1;margin-bottom:0.12in;max-width:3.3in">
+      ${biz.name}
+    </div>
+
+    <div style="font-size:9px;color:#E8C547;font-family:monospace;letter-spacing:0.3px;word-break:break-all;margin-bottom:auto">
+      ${url}
+    </div>
+
+    <div style="display:flex;align-items:center;gap:6px;font-size:8px;color:rgba(240,237,232,0.35)">
+      ${qrMark(9)}
+      <span style="letter-spacing:0.5px">Powered by QRServe</span>
+    </div>
+  </div>
+
+</div>`;
+    }).join("");
 
     const printHtml = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
-  <title>${biz.name} — Table QR Codes</title>
+  <title>${biz.name} — Table QR Postcards</title>
   <style>
-    @page { size: A4 portrait; margin: 12mm 14mm; }
+    @page { size: letter portrait; margin: 0.2in; }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-      background: #fff; color: #000;
-    }
-    header {
-      text-align: center;
-      padding-bottom: 14px;
-      margin-bottom: 20px;
-      border-bottom: 1.5px solid #000;
-    }
-    header h1 { font-size: 22px; font-weight: 900; letter-spacing: -0.5px; }
-    header p  { font-size: 11px; color: #555; margin-top: 5px; letter-spacing: 0.5px; }
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 14px;
-    }
-    .cell {
-      text-align: center;
-      padding: 12px 10px;
-      border: 1px solid #d0d0d0;
-      border-radius: 6px;
-      break-inside: avoid;
-      page-break-inside: avoid;
-    }
-    .cell img {
-      /* 2 inches minimum at 96dpi screen = 192px; print browsers scale via @page */
-      width: 100%;
-      max-width: 192px;
-      height: auto;
-      display: block;
-      margin: 0 auto 8px;
-      image-rendering: crisp-edges;
-    }
-    .cell .name {
-      font-size: 13px;
-      font-weight: 800;
-      letter-spacing: 0.2px;
-      margin-bottom: 4px;
-    }
-    .cell .scan-url {
-      font-size: 8px;
-      color: #999;
-      word-break: break-all;
-      line-height: 1.4;
-    }
-    footer {
-      margin-top: 20px;
-      text-align: center;
-      font-size: 9px;
-      color: #bbb;
-      border-top: 1px solid #e8e8e8;
-      padding-top: 10px;
+      background: #f0f0f0;
     }
     @media print {
-      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      body { background: transparent; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     }
   </style>
 </head>
 <body>
-  <header>
-    <h1>${biz.name}</h1>
-    <p>SCAN TO VIEW MENU &amp; ORDER &mdash; NO APP REQUIRED</p>
-  </header>
-  <div class="grid">${rows}</div>
-  <footer>Powered by QRServe &middot; qrserve-v3.vercel.app</footer>
+  ${pairs}
   <script>window.addEventListener("load", function(){ window.print(); });</script>
 </body>
 </html>`;
