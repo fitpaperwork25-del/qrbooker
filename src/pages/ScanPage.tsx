@@ -35,17 +35,20 @@ export default function ScanPage() {
     setLoading(true);
     setError(null);
     try {
-      const { data: biz, error: bizErr } = await supabase
-        .from('businesses')
-        .select('name')
-        .eq('id', bizId)
-        .single();
+      const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+      // Accept both UUID and business slug (e.g. /scan/snelling-cafe/table-1)
+      const bizQ = supabase.from('businesses').select('id, name');
+      const { data: biz, error: bizErr } = await (UUID_RE.test(bizId)
+        ? bizQ.eq('id', bizId)
+        : bizQ.eq('slug', bizId)
+      ).maybeSingle();
       if (bizErr) { setError(`Could not load restaurant (${bizErr.code}). Please try again.`); setLoading(false); return; }
       if (!biz)   { setError('Restaurant not found. Please scan the QR code again.'); setLoading(false); return; }
       setBusiness(biz);
 
-      const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      const locQuery = supabase.from('locations').select('id').eq('business_id', bizId);
+      const resolvedBizId = biz.id; // always UUID from here on
+      const locQuery = supabase.from('locations').select('id').eq('business_id', resolvedBizId);
       const { data: loc, error: locErr } = await (UUID_RE.test(locationId)
         ? locQuery.eq('id', locationId)
         : locQuery.eq('slug', locationId)
@@ -77,7 +80,7 @@ export default function ScanPage() {
       const { data: cats, error: catErr } = await supabase
         .from('menu_categories')
         .select('*')
-        .eq('business_id', bizId)
+        .eq('business_id', resolvedBizId)
         .eq('is_visible', true)
         .order('display_order');
       if (catErr) { console.error('Categories error:', catErr); }
@@ -153,7 +156,7 @@ export default function ScanPage() {
     try {
       const { data: tab, error: tabErr } = await supabase
         .from('tabs')
-        .insert({ business_id: bizId, location_id: locationUuid, status: 'open', total: 0 })
+        .insert({ business_id: business?.id ?? bizId, location_id: locationUuid, status: 'open', total: 0 })
         .select('id, total, location_id, status')
         .single();
       if (tabErr) throw tabErr;
@@ -175,7 +178,7 @@ export default function ScanPage() {
       const newOrderId = crypto.randomUUID();
       const { error: orderErr } = await supabase
         .from('orders')
-        .insert({ id: newOrderId, business_id: bizId, location_id: locationUuid, total: cartTotal, status: 'new' });
+        .insert({ id: newOrderId, business_id: business?.id ?? bizId, location_id: locationUuid, total: cartTotal, status: 'new' });
       if (orderErr) throw orderErr;
       const { error: itemsErr } = await supabase.from('order_items').insert(
         cartItems.map(i => ({ order_id: newOrderId, menu_item_id: i.id, quantity: i.qty, unit_price: i.price }))
@@ -200,7 +203,7 @@ export default function ScanPage() {
       const newOrderId = crypto.randomUUID();
       const { error: orderErr } = await supabase
         .from('orders')
-        .insert({ id: newOrderId, business_id: bizId, location_id: locationUuid, total: cartTotal, status: 'new', tab_id: openTab.id });
+        .insert({ id: newOrderId, business_id: business?.id ?? bizId, location_id: locationUuid, total: cartTotal, status: 'new', tab_id: openTab.id });
       if (orderErr) throw orderErr;
       const { error: itemsErr } = await supabase.from('order_items').insert(
         cartItems.map(i => ({ order_id: newOrderId, menu_item_id: i.id, quantity: i.qty, unit_price: i.price }))
