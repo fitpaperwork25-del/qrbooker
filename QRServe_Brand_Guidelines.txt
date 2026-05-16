@@ -1,0 +1,81 @@
+QRServe — Brand Guidelines
+===========================
+Last updated: May 15, 2026
+Platform owner: Michael A. Etbarekh (fitpaperwork25@gmail.com)
+
+
+LOGO
+----
+Layout: Horizontal — QR mark on the left, wordmark and tagline on the right
+QR Mark: Three finder patterns (top-left, top-right, bottom-left) + data dots (bottom-right)
+Wordmark: "QRServe" — "QR" in white, "Serve" in gold
+Font: Arial Black, 64px, weight 900, letter-spacing -2
+Tagline: "SCAN · ORDER · SERVE" — bright light grey, letter-spacing 4
+Underline: Thin gold line beneath the tagline
+Gap: Clear breathing room between QR mark and wordmark
+
+
+COLORS
+------
+Background (primary):   #080808  — near black
+Gold accent:            #E8C547  — brand gold, used on QR mark, "Serve", underline
+White text:             #F0EDE8  — warm white, used on "QR" wordmark
+Tagline text:           #C8C4BC  — light grey, used on tagline
+Muted text:             #666666  — secondary/muted information
+Dark surface:           #111108  — slightly lighter than background, used inside QR mark
+Border/divider:         rgba(255,255,255,0.08) — subtle borders
+
+
+TYPOGRAPHY
+----------
+Primary font:     Arial Black (headings, wordmark, bold UI)
+Secondary font:   Arial / sans-serif (body, tagline, UI labels)
+Wordmark size:    64px, weight 900
+Tagline size:     14px, weight 400, letter-spacing 4
+Body text:        16px, weight 400, line-height 1.7
+
+
+LOGO USAGE RULES
+----------------
+- Always use on dark (#080808) background
+- Never place on white or light backgrounds
+- Minimum clear space: equal to the height of the "Q" on all sides
+- Do not stretch, rotate, or recolor the logo
+- Do not use "QR" and "Serve" in the same color
+- The gold underline beneath the tagline is part of the logo — do not remove it
+- QR mark and wordmark must always appear together — do not use separately
+
+
+TAGLINE
+-------
+Primary: SCAN · ORDER · SERVE
+Use case: All brand materials, email headers, print collateral, QR deployment kits
+
+
+BRAND VOICE
+-----------
+- Direct and confident
+- No fluff — every word earns its place
+- Hospitality-forward — warm but professional
+- Empowering to restaurant owners and staff
+
+
+LOGO SVG SPEC
+-------------
+viewBox: 0 0 680 320
+Background rect: fill #080808, rx 16
+QR mark group: transform translate(60, 85)
+  - TL finder: rect x=0 y=0 w=60 h=60, stroke #E8C547 sw=5, inner fill rect x=12 y=12 w=36 h=36
+  - TR finder: rect x=80 y=0 w=60 h=60, stroke #E8C547 sw=5, inner fill rect x=92 y=12 w=36 h=36
+  - BL finder: rect x=0 y=80 w=60 h=60, stroke #E8C547 sw=5, inner fill rect x=12 y=92 w=36 h=36
+  - Data dots: 8 rects at x=80/102/124, y=80/102/124, w=16 h=16, fill #E8C547
+Wordmark: text x=260 y=170, Arial Black 64px, fill #F0EDE8, "QR" + tspan fill #E8C547 "Serve"
+Tagline: text x=262 y=210, Arial 14px, fill #C8C4BC, letter-spacing 4, "SCAN · ORDER · SERVE"
+Underline: line x1=262 y1=225 x2=540 y2=225, stroke #E8C547, stroke-width 1
+
+
+ASSETS LOCATION
+---------------
+Logo SVG spec: this document
+Brand guidelines: QRServe_Brand_Guidelines.txt (Desktop\Projects\qrserve-v3)
+Operations guide: QRServe_Operations_Guide.txt (Desktop\Projects\qrserve-v3)

@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(vercel env *)",
+      "Bash(stripe *)",
+      "Bash(npx vercel *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Skill(vercel:deploy)",
+      "Bash(npm i *)",
+      "Bash(vercel --version)",
+      "Bash(vercel whoami *)",
+      "Bash(vercel link *)",
+      "Bash(git push *)",
+      "Bash(vercel --prod)",
+      "Bash(npx tsc *)",
+      "PowerShell(supabase *)",
+      "PowerShell(Get-Content *)",
+      "PowerShell(Get-ChildItem *)",
+      "PowerShell($env:SUPABASE_SERVICE_ROLE_KEY; $env:VITE_SUPABASE_SERVICE_ROLE_KEY; $env:SUPABASE_URL; $env:VITE_SUPABASE_URL)",
+      "PowerShell(Set-Content *)",
+      "Bash(git rm *)"
+    ]
+  }
+}

@@ -74,7 +74,6 @@ export default function LoginPage() {
     if (e.key === "Enter") handleSubmit();
   };
 
-  // Auto-submit when navigated here from the Try Demo dropdown
   useEffect(() => {
     if (!state?.demoEmail || !state?.demoPassword) return;
     setLoading(true);
@@ -259,7 +258,7 @@ export default function LoginPage() {
               No account? Register →
             </button>
             <button
-              onClick={() => navigate("/reset-password")}
+              onClick={() => navigate("/forgot-password")}
               style={{
                 background: "none",
                 border: "none",

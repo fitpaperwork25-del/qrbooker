@@ -12,6 +12,8 @@ import ScanLandingPage from "./pages/ScanLandingPage";
 import SuccessPage from "./pages/SuccessPage";
 import StaffDashboardPage from "./pages/StaffDashboardPage";
 import StaffLoginPage from "./pages/StaffLoginPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 
 // Placeholders — replace with real pages as they are built
 const Placeholder = ({ name }: { name: string }) => (
@@ -28,6 +30,8 @@ export default function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/staff-login" element={<StaffLoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/onboarding" element={<Placeholder name="OnboardingPage" />} />
       <Route path="/onboarding-complete" element={<Placeholder name="OnboardingComplete" />} />
       <Route path="/pricing" element={<Placeholder name="PricingPage" />} />
@@ -35,7 +39,6 @@ export default function App() {
       <Route path="/help" element={<Placeholder name="HelpPage" />} />
       <Route path="/terms" element={<Placeholder name="TermsPage" />} />
       <Route path="/privacy" element={<Placeholder name="PrivacyPage" />} />
-      <Route path="/reset-password" element={<Placeholder name="ResetPasswordPage" />} />
       <Route path="/scan/:bizSlug" element={<ScanLandingPage />} />
       <Route path="/scan/:bizId/:locationId" element={<ScanPage />} />
       <Route path="/book/:slug" element={<Placeholder name="BookingPage" />} />

@@ -1,0 +1,180 @@
+QRServe v3 — Operations & Troubleshooting Guide
+================================================
+Last updated: May 15, 2026
+Platform owner: Michael A. Etbarekh (fitpaperwork25@gmail.com)
+
+
+PLATFORM OVERVIEW
+-----------------
+QRServe v3 is a QR-based ordering platform for restaurants and cafes.
+Live URL: https://qrserve-v3.vercel.app
+
+Three user roles:
+1. Platform Owner (you) — manages all businesses via /admin
+2. Restaurant Owner — manages their own restaurant via /dashboard
+3. Staff — views and manages orders via /staff
+
+Key URLs:
+- Landing page:     qrserve-v3.vercel.app
+- Owner login:      qrserve-v3.vercel.app/login
+- Owner dashboard:  qrserve-v3.vercel.app/dashboard
+- Staff login:      qrserve-v3.vercel.app/staff-login
+- Staff kitchen:    qrserve-v3.vercel.app/staff
+- Super admin:      qrserve-v3.vercel.app/admin
+- Register:         qrserve-v3.vercel.app/register
+- Demo:             qrserve-v3.vercel.app (click Try Demo)
+- Demo scan page:   qrserve-v3.vercel.app/scan/demo-restaurant
+
+
+INFRASTRUCTURE
+--------------
+- Frontend: React/Vite, deployed on Vercel
+- Database: Supabase (project ID: yizvlbupvamsietgjtys)
+- Payments: Stripe (live mode)
+- GitHub: fitpaperwork25-del/qrserve-v3
+- Local path: Desktop\Projects\qrserve-v3
+- Supabase CLI: Desktop\supabase.exe
+
+
+ACTIVE BUSINESSES
+-----------------
+1. Snelling Cafe
+   - Slug: snelling-cafe
+   - Scan page: qrserve-v3.vercel.app/scan/snelling-cafe
+   - Staff PIN: 2026
+   - Plan: Pro / Active
+
+2. Red Sea
+   - Slug: red-sea
+   - Scan page: qrserve-v3.vercel.app/scan/red-sea
+   - Staff PIN: 2026
+   - Plan: Starter / Trialing
+
+3. Ginkgo Cafe
+   - Slug: ginkgo-cafe
+   - Scan page: qrserve-v3.vercel.app/scan/ginkgo-cafe
+   - Staff PIN: 2026
+
+4. Demo Restaurant
+   - Slug: demo-restaurant
+   - Scan page: qrserve-v3.vercel.app/scan/demo-restaurant
+   - Owner login: demo@qrserve.app / Demo2026
+   - Staff PIN: 1234
+   - Purpose: prospect demos only
+
+5. 5 Star Cafe
+   - Slug: 5-star-cafe
+   - Status: Not started
+
+
+ONBOARDING A NEW CLIENT (Step by Step)
+---------------------------------------
+Step 1 — Client registers
+   - Send them: qrserve-v3.vercel.app/register
+   - They create their account and choose a plan
+   - They appear automatically on your /admin page with NOT STARTED status
+
+Step 2 — Set up their tables
+   - Open their Deploy Kit on /admin, click Dashboard
+   - Go to the Tables tab and add their tables (e.g. Table 1 to Table 10)
+   - Checklist auto-checks "Tables set up"
+
+Step 3 — Load their menu
+   - Go to the Menu tab in their dashboard
+   - Add categories and menu items with prices
+   - Checklist auto-checks "Menu loaded"
+
+Step 4 — Print and deliver their QR code
+   - On /admin, click the QR code image to download it
+   - Print it and place it on each table
+   - Click "QR code printed" in the Communication Log
+
+Step 5 — Train staff
+   - Give staff their login details:
+     URL: qrserve-v3.vercel.app/staff-login
+     Restaurant ID: their slug (e.g. red-sea)
+     PIN: their staff PIN (default 2026, update on /admin if needed)
+   - Show them the kitchen view and how to update order status
+   - Click "Staff trained" in the Communication Log
+
+Step 6 — Go live
+   - Customer scan page is ready: qrserve-v3.vercel.app/scan/{slug}
+   - Click "Went live" in the Communication Log
+   - Status changes to LIVE automatically after first order received
+
+
+USING THE SUPER ADMIN PAGE (/admin)
+-------------------------------------
+Access: Log in as fitpaperwork25@gmail.com, then go to /admin
+
+What you can do:
+- See all businesses and their deployment status
+- View Deploy Kit (scan link, staff login link with pre-filled slug/PIN, dashboard link)
+- Download QR code for each business
+- Track deployment checklist per business
+- Log communication notes (QR printed, staff trained, went live, issues)
+- Reset staff PIN for any business
+- Register a new client with + New Client button
+
+Deployment status badges:
+- NOT STARTED: no tables or menu yet
+- IN PROGRESS: has tables and menu but no first order yet
+- LIVE: has received at least one order
+
+
+DEMO ACCOUNT (for prospects)
+------------------------------
+Send prospects to: qrserve-v3.vercel.app
+They click "Try Demo" and choose:
+- Customer View: scan page with full menu
+- Staff Kitchen: kitchen view (slug: demo-restaurant, PIN: 1234)
+- Owner Dashboard: auto-logs in as demo@qrserve.app / Demo2026
+
+Do not use the demo account for real clients.
+
+
+TROUBLESHOOTING
+---------------
+
+Problem: Scan page shows blank or "restaurant not found"
+Fix: Check the slug in the URL is correct. Check Supabase businesses table for the correct slug.
+
+Problem: Staff login shows "Restaurant not found"
+Fix: Confirm the slug matches exactly what is in the businesses table (lowercase, hyphens only).
+
+Problem: Orders not appearing in kitchen view
+Fix: Hard refresh (Ctrl+Shift+R). Kitchen polls every 15 seconds. Check that the order was placed successfully on the scan page.
+
+Problem: Cancel button shows schema error
+Fix: The cancel_reason column may be missing. Run in Supabase SQL editor:
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS cancel_reason text;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS cancelled_at timestamptz;
+
+Problem: Financials showing $0.00
+Fix: Check that orders have status other than 'cancelled'. Financials only count completed orders.
+
+Problem: Mobile dashboard shows blank page
+Fix: This was caused by the Notification API not being available on iOS Safari. Should be fixed. If it recurs, check for any direct use of "Notification" without typeof check.
+
+Problem: Vercel deployment failing
+Fix: Check Vercel dashboard at vercel.com for the error. Most common causes are unused imports or missing columns. Paste the error into Claude Code and ask it to fix.
+
+Problem: Staff PIN not working
+Fix: Go to /admin, find the business, update the PIN in the Staff PIN field and click Update.
+
+
+STRIPE PLANS
+------------
+- Starter: $49/mo — price_1TUUx42
+- Pro: $99/mo — price_1TUUya
+- Enterprise: $199/mo — price_1TUUzg
+Webhook ID: we_1TWomG2Q69I8I13K1lj5tA72
+
+
+CONTACTS
+--------
+Platform owner: Michael A. Etbarekh
+Email: fitpaperwork25@gmail.com
+Secondary: etbarekh@me.com
+GitHub: fitpaperwork25-del
+Namecheap: etbarekh

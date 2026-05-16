@@ -1,0 +1,56 @@
+QRServe v3 — Product Roadmap
+=============================
+Last updated: May 15, 2026
+
+
+IMMEDIATE PRIORITIES (before first paying client)
+--------------------------------------------------
+- Close Red Sea (Yohannes) signup
+- Close Snelling Cafe (Afeworki) signup
+- Deploy Bole Restaurant
+- Send welcome deployment packet to each new client
+
+
+SHORT TERM (after first 3 paying clients)
+------------------------------------------
+- Plan feature gating — enforce Starter/Pro/Enterprise limits
+- Full e2e automated system test
+- Menu add/edit from owner dashboard
+- Order cancel analytics improvements
+
+
+MEDIUM TERM
+-----------
+- Multilingual scan page
+  Languages: Spanish, French, Italian, German (Latin script — one session)
+  Then: Arabic (RTL), Amharic (Ethiopic script — separate session)
+  Trigger: when a client's customers are not English-speaking
+  Tech: react-i18next, Noto Sans Ethiopic for Amharic, RTL layout for Arabic
+
+- Admin page — plan feature gating enforcement
+  Starter: location limit, no staff management
+  Pro: up to 5 locations, staff management
+  Enterprise: unlimited, white label, custom domain
+
+- Automated welcome email (Resend)
+  Triggered on registration
+  Includes: branded email, deployment kit, QR code, quick start, dashboard CTA
+  Design: dark #080808, gold #E8C547, QRServe logo in header
+
+
+LONG TERM
+---------
+- White label option (Enterprise plan)
+- Custom domain per restaurant (Enterprise)
+- Native mobile app for staff kitchen view
+- Loyalty/rewards system for customers
+- Integration with POS systems
+- Multi-location analytics dashboard
+- Stay Africa integration (hotel room ordering)
+
+
+NOTES
+-----
+- Multilingual: do not build until a client requests it
+- Feature gating: do not enforce until you have clients on different plans
+- All new features should be validated by at least one client before building
