@@ -1,28 +1,22 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import QRCode from "qrcode";
 import { useAuth } from "../lib/useAuth";
 import { supabase } from "../lib/supabase";
 import { ACCENT, BG, BORDER, MUTED, SURFACE, TEXT, GREEN, RED } from "../constants/theme";
 
-// ── Types ────────────────────────────────────────────────────
 type Business = {
-  id: string;
-  name: string;
-  type: string;
-  plan: string;
-  subscription_status: string;
-  logo_url: string | null;
-  slug: string;
+  id: string; name: string; type: string; plan: string;
+  subscription_status: string; logo_url: string | null; slug: string;
 };
-
 type Location  = { id: string; name: string; label: string | null; is_active: boolean };
 type Order     = { id: string; status: string; total: number; created_at: string; cancel_reason: string | null };
-type OpenTab   = { id: string; table_name: string; total: number; opened_at: string; };
+type OpenTab   = { id: string; table_name: string; total: number; opened_at: string };
 type OrderItem = { id: string; name: string; quantity: number; unit_price: number };
 type Category  = { id: string; name: string; display_order: number };
 type MenuItem  = { id: string; category_id: string; name: string; price: number; description: string | null; is_available: boolean };
 type Expense       = { id: string; amount: number; category: string; description: string | null; expense_date: string };
 type ManualRevenue = { id: string; amount: number; category: string; description: string | null; revenue_date: string };
+type CsvRow    = { category: string; name: string; price: string; description: string; error?: string };
 
 const TODAY = new Date().toISOString().slice(0, 10);
 const EMPTY_EXPENSE = { category: "", amount: "", description: "", expense_date: TODAY };
@@ -30,37 +24,22 @@ const EMPTY_REVENUE = { category: "Dine-in", amount: "", description: "", date: 
 const REVENUE_CATEGORIES = ["Dine-in", "Takeout", "Catering", "Other"] as const;
 
 const ORDER_STATUS_COLOR: Record<string, string> = {
-  new:       "#E8C547",
-  preparing: "#F97316",
-  ready:     "#4CAF50",
-  done:      "#888888",
-  cancelled: "#f44336",
+  new: "#E8C547", preparing: "#F97316", ready: "#4CAF50", done: "#888888", cancelled: "#f44336",
 };
 const ORDER_STATUSES = ["new", "preparing", "ready", "done"] as const;
 const CANCEL_REASONS = ["Wrong order", "Customer refused", "Item unavailable", "Other"] as const;
 
 type Tab = "tables" | "menu" | "orders" | "financials";
-
 const EMPTY_ITEM = { name: "", price: "", description: "", category_id: "" };
 
 const card: React.CSSProperties = {
-  background: SURFACE,
-  border: `1px solid ${BORDER}`,
-  borderRadius: 10,
-  padding: "24px 28px",
+  background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 10, padding: "24px 28px",
 };
 
 const badge = (color: string): React.CSSProperties => ({
-  display: "inline-block",
-  background: color + "22",
-  color,
-  border: `1px solid ${color}44`,
-  borderRadius: 6,
-  padding: "3px 10px",
-  fontSize: 11,
-  fontWeight: 700,
-  letterSpacing: 1,
-  textTransform: "uppercase",
+  display: "inline-block", background: color + "22", color,
+  border: `1px solid ${color}44`, borderRadius: 6, padding: "3px 10px",
+  fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase",
 });
 
 const PLAN_ORDER = ["trialing", "starter", "pro", "enterprise"];
@@ -75,7 +54,6 @@ function planColor(plan: string) {
   if (plan === "pro") return ACCENT;
   return MUTED;
 }
-
 function statusColor(status: string) {
   if (status === "active") return GREEN;
   if (status === "trialing") return ACCENT;
@@ -143,6 +121,13 @@ export default function DashboardPage() {
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
   const [editExpenseForm, setEditExpenseForm]   = useState(EMPTY_EXPENSE);
 
+  // ── CSV Import ───────────────────────────────────────────
+  const csvInputRef                           = useRef<HTMLInputElement>(null);
+  const [csvRows, setCsvRows]                 = useState<CsvRow[]>([]);
+  const [csvImporting, setCsvImporting]       = useState(false);
+  const [csvError, setCsvError]               = useState("");
+  const [csvSuccess, setCsvSuccess]           = useState("");
+
   useEffect(() => {
     if (!session?.user.id) return;
     void load(session.user.id);
@@ -170,9 +155,7 @@ export default function DashboardPage() {
             }
             return ordRes.data as Order[];
           });
-        } else {
-          setOrders(ordRes.data as Order[]);
-        }
+        } else { setOrders(ordRes.data as Order[]); }
       }
       if (tabsRes.data) {
         setOpenTabs((tabsRes.data as any[]).map((t) => ({
@@ -395,6 +378,100 @@ export default function DashboardPage() {
     a.click();
   }
 
+  // ── CSV Import Functions ─────────────────────────────────
+  function downloadCsvTemplate() {
+    const template = "category,name,price,description\nSalads,Caesar Salad,12.50,Romaine lettuce with Caesar dressing\nMains,Grilled Chicken,15.99,Served with fries and salad\n";
+    const blob = new Blob([template], { type: "text/csv" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "menu_template.csv";
+    a.click();
+  }
+
+  function handleCsvFile(e: React.ChangeEvent<HTMLInputElement>) {
+    setCsvError(""); setCsvSuccess("");
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string;
+      const lines = text.split(/\r?\n/).filter((l) => l.trim());
+      if (lines.length < 2) { setCsvError("File is empty or missing data rows."); return; }
+
+      const header = lines[0].toLowerCase().split(",").map((h) => h.trim());
+      const catIdx  = header.indexOf("category");
+      const nameIdx = header.indexOf("name");
+      const priceIdx = header.indexOf("price");
+      const descIdx  = header.indexOf("description");
+
+      if (catIdx === -1 || nameIdx === -1 || priceIdx === -1) {
+        setCsvError("CSV must have columns: category, name, price (description optional).");
+        return;
+      }
+
+      const rows: CsvRow[] = [];
+      for (let i = 1; i < lines.length; i++) {
+        const cols = lines[i].split(",").map((c) => c.trim().replace(/^"|"$/g, ""));
+        const row: CsvRow = {
+          category:    cols[catIdx]  ?? "",
+          name:        cols[nameIdx] ?? "",
+          price:       cols[priceIdx] ?? "0",
+          description: descIdx >= 0 ? (cols[descIdx] ?? "") : "",
+        };
+        if (!row.category || !row.name) { row.error = "Missing category or name"; }
+        if (isNaN(parseFloat(row.price))) { row.error = "Invalid price"; }
+        rows.push(row);
+      }
+      setCsvRows(rows);
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  }
+
+  async function importCsvItems() {
+    if (!business || csvRows.length === 0) return;
+    const validRows = csvRows.filter((r) => !r.error);
+    if (validRows.length === 0) { setCsvError("No valid rows to import."); return; }
+
+    setCsvImporting(true); setCsvError("");
+
+    // Get or create categories
+    const catNames = [...new Set(validRows.map((r) => r.category))];
+    const catMap: Record<string, string> = {};
+
+    for (const catName of catNames) {
+      const existing = categories.find((c) => c.name.toLowerCase() === catName.toLowerCase());
+      if (existing) {
+        catMap[catName] = existing.id;
+      } else {
+        const { data, error } = await supabase.from("menu_categories")
+          .insert({ business_id: business.id, name: catName, display_order: categories.length + Object.keys(catMap).length, is_visible: true })
+          .select("id, name, display_order").single();
+        if (error) { setCsvError(`Failed to create category "${catName}": ${error.message}`); setCsvImporting(false); return; }
+        catMap[catName] = (data as Category).id;
+        setCategories((prev) => [...prev, data as Category]);
+      }
+    }
+
+    // Insert all items
+    const itemInserts = validRows.map((row, idx) => ({
+      category_id:   catMap[row.category],
+      name:          row.name,
+      price:         parseFloat(row.price) || 0,
+      description:   row.description || null,
+      is_available:  true,
+      display_order: idx,
+    }));
+
+    const { data, error } = await supabase.from("menu_items").insert(itemInserts).select("id, category_id, name, price, description, is_available");
+    if (error) { setCsvError(`Import failed: ${error.message}`); setCsvImporting(false); return; }
+
+    setMenuItems((prev) => [...prev, ...(data as MenuItem[])]);
+    setCsvSuccess(`✓ Imported ${validRows.length} items successfully.`);
+    setCsvRows([]);
+    setCsvImporting(false);
+  }
+
   if (loading) {
     return <div style={{ background: BG, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: MUTED, fontFamily: "sans-serif" }}>Loading…</div>;
   }
@@ -416,7 +493,6 @@ export default function DashboardPage() {
   ];
   const checklistDone = checklist.filter((c) => c.done).length;
   const allDone = checklistDone === checklist.length;
-
   const currentPlanIndex = PLAN_ORDER.indexOf(business.subscription_status === "trialing" ? "trialing" : business.plan);
   const upgradePlans = Object.entries(PLAN_LABELS).filter(([p]) => PLAN_ORDER.indexOf(p) > currentPlanIndex);
 
@@ -433,16 +509,12 @@ export default function DashboardPage() {
           </div>
         </div>
         <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-          <button
-            onClick={() => window.open("/staff-login", "_blank")}
-            style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "8px 14px", color: MUTED, cursor: "pointer", fontSize: 13 }}
-          >
+          <button onClick={() => window.open("/staff-login", "_blank")}
+            style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "8px 14px", color: MUTED, cursor: "pointer", fontSize: 13 }}>
             Staff login
           </button>
-          <button
-            onClick={signOut}
-            style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "8px 14px", color: MUTED, cursor: "pointer", fontSize: 13 }}
-          >
+          <button onClick={signOut}
+            style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "8px 14px", color: MUTED, cursor: "pointer", fontSize: 13 }}>
             Sign out
           </button>
         </div>
@@ -472,23 +544,14 @@ export default function DashboardPage() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16 }}>
             {upgradePlans.map(([planKey, info]) => (
               <div key={planKey} style={{ ...card, border: info.recommended ? `2px solid ${ACCENT}44` : `1px solid ${BORDER}`, position: "relative" }}>
-                {info.recommended && (
-                  <div style={{ position: "absolute", top: -12, left: 20, background: ACCENT, color: BG, fontSize: 10, fontWeight: 800, letterSpacing: 2, padding: "3px 10px", borderRadius: 4 }}>RECOMMENDED</div>
-                )}
+                {info.recommended && <div style={{ position: "absolute", top: -12, left: 20, background: ACCENT, color: BG, fontSize: 10, fontWeight: 800, letterSpacing: 2, padding: "3px 10px", borderRadius: 4 }}>RECOMMENDED</div>}
                 <div style={{ fontSize: 11, color: MUTED, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>{info.label}</div>
                 <div style={{ fontSize: 28, fontWeight: 900, color: ACCENT, marginBottom: 12 }}>{info.price}</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 20 }}>
-                  {info.features.map((f) => (
-                    <div key={f} style={{ fontSize: 13, color: MUTED, display: "flex", gap: 8 }}>
-                      <span style={{ color: GREEN }}>✓</span>{f}
-                    </div>
-                  ))}
+                  {info.features.map((f) => <div key={f} style={{ fontSize: 13, color: MUTED, display: "flex", gap: 8 }}><span style={{ color: GREEN }}>✓</span>{f}</div>)}
                 </div>
-                <button
-                  onClick={() => startCheckout(planKey)}
-                  disabled={upgrading === planKey}
-                  style={{ width: "100%", background: info.recommended ? ACCENT : "none", color: info.recommended ? BG : ACCENT, border: `1.5px solid ${ACCENT}`, borderRadius: 8, padding: "12px", fontWeight: 800, fontSize: 14, cursor: upgrading === planKey ? "not-allowed" : "pointer" }}
-                >
+                <button onClick={() => startCheckout(planKey)} disabled={upgrading === planKey}
+                  style={{ width: "100%", background: info.recommended ? ACCENT : "none", color: info.recommended ? BG : ACCENT, border: `1.5px solid ${ACCENT}`, borderRadius: 8, padding: "12px", fontWeight: 800, fontSize: 14, cursor: upgrading === planKey ? "not-allowed" : "pointer" }}>
                   {upgrading === planKey ? "Redirecting…" : `Upgrade to ${info.label} →`}
                 </button>
               </div>
@@ -547,10 +610,55 @@ export default function DashboardPage() {
           {/* Menu tab */}
           {tab === "menu" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+
+              {/* Toolbar */}
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
                 <button onClick={() => { setAddingCat(true); setAddingItem(false); }} style={{ background: "none", border: `1px solid ${ACCENT}`, borderRadius: 8, padding: "10px 20px", color: ACCENT, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>+ Add category</button>
                 {categories.length > 0 && <button onClick={() => { setAddingItem(true); setAddingCat(false); setItemForm({ ...EMPTY_ITEM, category_id: categories[0].id }); }} style={{ background: ACCENT, border: "none", borderRadius: 8, padding: "10px 20px", color: BG, fontWeight: 800, fontSize: 13, cursor: "pointer" }}>+ Add item</button>}
+                {/* CSV Import */}
+                <input ref={csvInputRef} type="file" accept=".csv" style={{ display: "none" }} onChange={handleCsvFile} />
+                <button onClick={() => csvInputRef.current?.click()} style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "10px 20px", color: MUTED, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>↑ Import CSV</button>
+                <button onClick={downloadCsvTemplate} style={{ background: "none", border: "none", color: MUTED, fontSize: 12, cursor: "pointer", textDecoration: "underline", padding: "10px 0" }}>Download template</button>
               </div>
+
+              {/* CSV success/error */}
+              {csvSuccess && <p style={{ color: GREEN, fontSize: 13, margin: 0, fontWeight: 700 }}>{csvSuccess}</p>}
+              {csvError && <p style={{ color: RED, fontSize: 13, margin: 0 }}>{csvError}</p>}
+
+              {/* CSV Preview */}
+              {csvRows.length > 0 && (
+                <div style={{ ...card, display: "flex", flexDirection: "column", gap: 16 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <p style={{ fontSize: 11, letterSpacing: 3, color: ACCENT, fontWeight: 700, textTransform: "uppercase", margin: 0 }}>
+                      CSV Preview — {csvRows.filter((r) => !r.error).length} valid / {csvRows.length} total
+                    </p>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button onClick={importCsvItems} disabled={csvImporting || csvRows.filter((r) => !r.error).length === 0}
+                        style={{ background: GREEN, color: BG, border: "none", borderRadius: 8, padding: "8px 18px", fontWeight: 800, fontSize: 13, cursor: csvImporting ? "not-allowed" : "pointer" }}>
+                        {csvImporting ? "Importing…" : `Import ${csvRows.filter((r) => !r.error).length} items`}
+                      </button>
+                      <button onClick={() => { setCsvRows([]); setCsvError(""); }} style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "8px 14px", color: MUTED, fontSize: 13, cursor: "pointer" }}>Cancel</button>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 320, overflowY: "auto" }}>
+                    {/* Header */}
+                    <div style={{ display: "grid", gridTemplateColumns: "2fr 3fr 1fr 3fr 1fr", gap: 8, padding: "6px 10px" }}>
+                      {["Category", "Name", "Price", "Description", ""].map((h) => (
+                        <span key={h} style={{ fontSize: 10, color: MUTED, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase" }}>{h}</span>
+                      ))}
+                    </div>
+                    {csvRows.map((row, idx) => (
+                      <div key={idx} style={{ display: "grid", gridTemplateColumns: "2fr 3fr 1fr 3fr 1fr", gap: 8, padding: "8px 10px", background: row.error ? RED + "11" : BG, borderRadius: 6, border: `1px solid ${row.error ? RED + "44" : BORDER}` }}>
+                        <span style={{ fontSize: 13, color: TEXT }}>{row.category}</span>
+                        <span style={{ fontSize: 13, color: TEXT }}>{row.name}</span>
+                        <span style={{ fontSize: 13, color: ACCENT }}>${parseFloat(row.price || "0").toFixed(2)}</span>
+                        <span style={{ fontSize: 12, color: MUTED }}>{row.description}</span>
+                        <span style={{ fontSize: 11, color: row.error ? RED : GREEN }}>{row.error ? "✗" : "✓"}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {addingCat && (
                 <form onSubmit={addCategory} style={{ ...card, display: "flex", flexDirection: "column", gap: 14 }}>
@@ -602,7 +710,7 @@ export default function DashboardPage() {
               )}
 
               {categories.length === 0 ? (
-                <Empty message="No categories yet." sub="Create a category first, then add items to it." />
+                <Empty message="No categories yet." sub="Create a category first, or import from CSV." />
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
                   {categories.map((cat) => {
@@ -613,9 +721,7 @@ export default function DashboardPage() {
                           <h3 style={{ fontWeight: 800, fontSize: 15, color: TEXT, margin: 0 }}>{cat.name}</h3>
                           <span style={{ color: MUTED, fontSize: 12 }}>{items.length} item{items.length !== 1 ? "s" : ""}</span>
                           <button onClick={() => deleteCategory(cat.id, items.length)}
-                            style={{ marginLeft: "auto", background: "none", border: `1px solid ${BORDER}`, borderRadius: 6, padding: "3px 10px", color: MUTED, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-                            Delete
-                          </button>
+                            style={{ marginLeft: "auto", background: "none", border: `1px solid ${BORDER}`, borderRadius: 6, padding: "3px 10px", color: MUTED, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Delete</button>
                         </div>
                         {items.length === 0 ? (
                           <p style={{ color: MUTED, fontSize: 13, paddingLeft: 4 }}>No items yet.</p>
