@@ -115,7 +115,7 @@ export default function LoginPage() {
           onClick={() => navigate("/")}
         >
           <QRMark />
-          <span style={{ fontWeight: 800, fontSize: 17, letterSpacing: 1 }}>QRServe</span>
+          <span style={{ fontWeight: 800, fontSize: 17, letterSpacing: 1 }}>QR-Wegn</span>
         </div>
         <button
           onClick={() => navigate("/staff-login")}

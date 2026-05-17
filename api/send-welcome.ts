@@ -22,7 +22,7 @@ function html(businessName: string, slug: string): string {
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Welcome to QRServe</title>
+  <title>Welcome to QR-Wegn</title>
 </head>
 <body style="margin:0;padding:0;background:#080808;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#080808;">
@@ -61,7 +61,7 @@ function html(businessName: string, slug: string): string {
       </table>
 
       <!-- Wordmark -->
-      <div style="font-size:28px;font-weight:900;color:#F0EDE8;letter-spacing:2px;line-height:1;">QRServe</div>
+      <div style="font-size:28px;font-weight:900;color:#F0EDE8;letter-spacing:2px;line-height:1;">QR-Wegn</div>
       <div style="margin-top:8px;font-size:10px;font-weight:600;color:#E8C547;letter-spacing:5px;">SCAN &middot; ORDER &middot; SERVE</div>
     </td>
   </tr>
@@ -205,7 +205,7 @@ function html(businessName: string, slug: string): string {
         <a href="mailto:fitpaperwork25@gmail.com" style="color:#E8C547;text-decoration:none;">fitpaperwork25@gmail.com</a>
       </p>
       <p style="margin:0;font-size:11px;color:#444444;letter-spacing:1px;">
-        &copy; 2026 QRServe &nbsp;&middot;&nbsp; SCAN &middot; ORDER &middot; SERVE
+        &copy; 2026 QR-Wegn &nbsp;&middot;&nbsp; SCAN &middot; ORDER &middot; SERVE
       </p>
     </td>
   </tr>

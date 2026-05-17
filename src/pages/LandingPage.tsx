@@ -182,7 +182,7 @@ export default function LandingPage() {
       <nav style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 32px", borderBottom: `1px solid ${BORDER}` }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <QRMark />
-          <span style={{ fontWeight: 800, fontSize: 17, letterSpacing: 1, color: TEXT }}>QRServe</span>
+          <span style={{ fontWeight: 800, fontSize: 17, letterSpacing: 1, color: TEXT }}>QR-Wegn</span>
         </div>
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
           {/* Try Demo */}
@@ -352,11 +352,11 @@ export default function LandingPage() {
           Scan to try
         </p>
         <p style={{ fontSize: 18, fontWeight: 800, color: TEXT, marginBottom: 28 }}>
-          Scan to try QRServe
+          Scan to try QR-Wegn
         </p>
         <div style={{ display: "inline-block", padding: 16, border: `1px solid ${BORDER}`, borderRadius: 16, background: "#080808" }}>
           {qrDataUrl
-            ? <img src={qrDataUrl} alt="Scan to try QRServe" width={200} height={200} style={{ display: "block", borderRadius: 8 }} />
+            ? <img src={qrDataUrl} alt="Scan to try QR-Wegn" width={200} height={200} style={{ display: "block", borderRadius: 8 }} />
             : <div style={{ width: 200, height: 200, background: "#111", borderRadius: 8 }} />
           }
         </div>
@@ -367,7 +367,7 @@ export default function LandingPage() {
 
       {/* Footer */}
       <footer style={{ borderTop: `1px solid ${BORDER}`, padding: "20px 32px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
-        <span style={{ fontSize: 13, color: MUTED }}>© 2026 QRServe</span>
+        <span style={{ fontSize: 13, color: MUTED }}>© 2026 QR-Wegn</span>
         <div style={{ display: "flex", gap: 24 }}>
           <button onClick={() => navigate("/pricing")} style={{ background: "none", border: "none", color: MUTED, fontSize: 13, cursor: "pointer", padding: 0 }}>Pricing</button>
           <button onClick={() => navigate("/terms")}   style={{ background: "none", border: "none", color: MUTED, fontSize: 13, cursor: "pointer", padding: 0 }}>Terms</button>

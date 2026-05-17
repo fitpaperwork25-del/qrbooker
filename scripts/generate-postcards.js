@@ -97,7 +97,7 @@ async function buildSvg(tableNum) {
   ${qrMark(MRG, logoY, MRK)}
   <text x="${MRG + MRK*2 + MRK*0.23 + 16}" y="${logoY + MRK + 7}"
         font-family="Arial Black, Arial, Helvetica, sans-serif"
-        font-weight="900" font-size="38" fill="${LIGHT}" letter-spacing="1.5">QRServe</text>
+        font-weight="900" font-size="38" fill="${LIGHT}" letter-spacing="1.5">QR-Wegn</text>
 
   <!-- Separator rule -->
   <line x1="${MRG}" y1="${ruleY}" x2="${W - MRG}" y2="${ruleY}"
@@ -138,7 +138,7 @@ async function buildSvg(tableNum) {
   <text x="${W/2}" y="${powY}"
         font-family="Arial, Helvetica, sans-serif"
         font-weight="400" font-size="26" fill="${MUTED}"
-        text-anchor="middle" letter-spacing="1">Powered by QRServe</text>
+        text-anchor="middle" letter-spacing="1">Powered by QR-Wegn</text>
 
 </svg>`;
 }
