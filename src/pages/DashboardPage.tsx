@@ -7,13 +7,14 @@ import { ACCENT, BG, BORDER, MUTED, SURFACE, TEXT, GREEN, RED } from "../constan
 type Business = {
   id: string; name: string; type: string; plan: string;
   subscription_status: string; logo_url: string | null; slug: string;
+  hero_image_url: string | null;
 };
 type Location  = { id: string; name: string; label: string | null; is_active: boolean };
 type Order     = { id: string; status: string; total: number; created_at: string; cancel_reason: string | null };
 type OpenTab   = { id: string; table_name: string; total: number; opened_at: string };
 type OrderItem = { id: string; name: string; quantity: number; unit_price: number };
 type Category  = { id: string; name: string; display_order: number };
-type MenuItem  = { id: string; category_id: string; name: string; price: number; description: string | null; is_available: boolean };
+type MenuItem  = { id: string; category_id: string; name: string; price: number; description: string | null; is_available: boolean; image_url: string | null };
 type Expense       = { id: string; amount: number; category: string; description: string | null; expense_date: string };
 type ManualRevenue = { id: string; amount: number; category: string; description: string | null; revenue_date: string };
 type CsvRow    = { category: string; name: string; price: string; description: string; error?: string };
@@ -29,7 +30,7 @@ const ORDER_STATUS_COLOR: Record<string, string> = {
 const ORDER_STATUSES = ["new", "preparing", "ready", "done"] as const;
 const CANCEL_REASONS = ["Wrong order", "Customer refused", "Item unavailable", "Other"] as const;
 
-type Tab = "tables" | "menu" | "orders" | "financials";
+type Tab = "tables" | "menu" | "orders" | "financials" | "branding";
 const EMPTY_ITEM = { name: "", price: "", description: "", category_id: "" };
 
 const card: React.CSSProperties = {
@@ -128,6 +129,18 @@ export default function DashboardPage() {
   const [csvError, setCsvError]               = useState("");
   const [csvSuccess, setCsvSuccess]           = useState("");
 
+  const [itemImageFile, setItemImageFile]               = useState<File | null>(null);
+  const [itemImageUploading, setItemImageUploading]     = useState(false);
+  const [editItemImageFile, setEditItemImageFile]       = useState<File | null>(null);
+  const itemImageInputRef                               = useRef<HTMLInputElement>(null);
+  const editItemImageInputRef                           = useRef<HTMLInputElement>(null);
+
+  const logoInputRef                                    = useRef<HTMLInputElement>(null);
+  const heroInputRef                                    = useRef<HTMLInputElement>(null);
+  const [brandingLogoUploading, setBrandingLogoUploading] = useState(false);
+  const [brandingHeroUploading, setBrandingHeroUploading] = useState(false);
+  const [brandingError, setBrandingError]               = useState("");
+
   useEffect(() => {
     if (!session?.user.id) return;
     void load(session.user.id);
@@ -208,7 +221,7 @@ export default function DashboardPage() {
         id: t.id, table_name: t.locations?.label || t.locations?.name || "Unknown table", total: t.total, opened_at: t.opened_at,
       })));
       if (cats.length > 0) {
-        const itemRes = await supabase.from("menu_items").select("id, category_id, name, price, description, is_available").in("category_id", cats.map((c) => c.id)).order("display_order");
+        const itemRes = await supabase.from("menu_items").select("id, category_id, name, price, description, is_available, image_url").in("category_id", cats.map((c) => c.id)).order("display_order");
         setMenuItems((itemRes.data as MenuItem[]) ?? []);
       }
       const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
@@ -251,9 +264,20 @@ export default function DashboardPage() {
     e.preventDefault();
     if (!itemForm.name.trim() || !itemForm.category_id) return;
     setItemError(""); setItemSaving(true);
-    const { data, error } = await supabase.from("menu_items").insert({ category_id: itemForm.category_id, name: itemForm.name.trim(), price: parseFloat(itemForm.price) || 0, description: itemForm.description.trim() || null, is_available: true, display_order: menuItems.filter((i) => i.category_id === itemForm.category_id).length }).select("id, category_id, name, price, description, is_available").single();
+    const { data, error } = await supabase.from("menu_items").insert({ category_id: itemForm.category_id, name: itemForm.name.trim(), price: parseFloat(itemForm.price) || 0, description: itemForm.description.trim() || null, is_available: true, display_order: menuItems.filter((i) => i.category_id === itemForm.category_id).length }).select("id, category_id, name, price, description, is_available, image_url").single();
     if (error) { setItemError(error.message); setItemSaving(false); return; }
-    setMenuItems((prev) => [...prev, data as MenuItem]);
+    let newItem = data as MenuItem;
+    if (itemImageFile) {
+      setItemImageUploading(true);
+      const url = await uploadMenuItemImage(newItem.id, itemImageFile);
+      if (url) {
+        await supabase.from("menu_items").update({ image_url: url }).eq("id", newItem.id);
+        newItem = { ...newItem, image_url: url };
+      }
+      setItemImageUploading(false);
+      setItemImageFile(null);
+    }
+    setMenuItems((prev) => [...prev, newItem]);
     setItemForm(EMPTY_ITEM); setAddingItem(false); setItemSaving(false);
   }
 
@@ -261,9 +285,17 @@ export default function DashboardPage() {
     e.preventDefault();
     if (!editingItemId) return;
     setItemEditError(""); setItemEditSaving(true);
-    const { error } = await supabase.from("menu_items").update({ name: editItemForm.name.trim(), price: parseFloat(editItemForm.price) || 0, description: editItemForm.description.trim() || null }).eq("id", editingItemId);
+    let imageUrl: string | undefined;
+    if (editItemImageFile) {
+      const url = await uploadMenuItemImage(editingItemId, editItemImageFile);
+      if (url) imageUrl = url;
+      setEditItemImageFile(null);
+    }
+    const updatePayload: Record<string, unknown> = { name: editItemForm.name.trim(), price: parseFloat(editItemForm.price) || 0, description: editItemForm.description.trim() || null };
+    if (imageUrl !== undefined) updatePayload.image_url = imageUrl;
+    const { error } = await supabase.from("menu_items").update(updatePayload).eq("id", editingItemId);
     if (error) { setItemEditError(error.message); setItemEditSaving(false); return; }
-    setMenuItems((prev) => prev.map((i) => i.id === editingItemId ? { ...i, name: editItemForm.name.trim(), price: parseFloat(editItemForm.price) || 0, description: editItemForm.description.trim() || null } : i));
+    setMenuItems((prev) => prev.map((i) => i.id === editingItemId ? { ...i, name: editItemForm.name.trim(), price: parseFloat(editItemForm.price) || 0, description: editItemForm.description.trim() || null, ...(imageUrl !== undefined ? { image_url: imageUrl } : {}) } : i));
     setEditingItemId(null); setItemEditSaving(false);
   }
 
@@ -575,6 +607,51 @@ export default function DashboardPage() {
     setCsvImporting(false);
   }
 
+  async function uploadMenuItemImage(itemId: string, file: File): Promise<string | null> {
+    const ext = file.name.split(".").pop() ?? "jpg";
+    const path = `${itemId}.${ext}`;
+    const { error } = await supabase.storage.from("menu-images").upload(path, file, { upsert: true });
+    if (error) return null;
+    const { data } = supabase.storage.from("menu-images").getPublicUrl(path);
+    return data.publicUrl;
+  }
+
+  async function uploadBrandingImage(type: "logo" | "hero", file: File): Promise<string | null> {
+    if (!business) return null;
+    const ext = file.name.split(".").pop() ?? "jpg";
+    const path = `${business.id}/${type}.${ext}`;
+    const { error } = await supabase.storage.from("business-assets").upload(path, file, { upsert: true });
+    if (error) return null;
+    const { data } = supabase.storage.from("business-assets").getPublicUrl(path);
+    return data.publicUrl;
+  }
+
+  async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !business) return;
+    setBrandingLogoUploading(true); setBrandingError("");
+    const url = await uploadBrandingImage("logo", file);
+    if (!url) { setBrandingError("Logo upload failed. Try again."); setBrandingLogoUploading(false); return; }
+    const { error } = await supabase.from("businesses").update({ logo_url: url }).eq("id", business.id);
+    if (error) { setBrandingError(error.message); setBrandingLogoUploading(false); return; }
+    setBusiness((b) => b ? { ...b, logo_url: url } : b);
+    setBrandingLogoUploading(false);
+    e.target.value = "";
+  }
+
+  async function handleHeroUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !business) return;
+    setBrandingHeroUploading(true); setBrandingError("");
+    const url = await uploadBrandingImage("hero", file);
+    if (!url) { setBrandingError("Hero image upload failed. Try again."); setBrandingHeroUploading(false); return; }
+    const { error } = await supabase.from("businesses").update({ hero_image_url: url }).eq("id", business.id);
+    if (error) { setBrandingError(error.message); setBrandingHeroUploading(false); return; }
+    setBusiness((b) => b ? { ...b, hero_image_url: url } : b);
+    setBrandingHeroUploading(false);
+    e.target.value = "";
+  }
+
   if (loading) {
     return <div style={{ background: BG, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: MUTED, fontFamily: "sans-serif" }}>Loading…</div>;
   }
@@ -665,7 +742,7 @@ export default function DashboardPage() {
         {/* Tabs */}
         <div>
           <div style={{ display: "flex", gap: 0, borderBottom: `1px solid ${BORDER}`, marginBottom: 24, overflowX: "auto", scrollbarWidth: "none", WebkitOverflowScrolling: "touch" } as React.CSSProperties}>
-            {(["tables", "menu", "orders", "financials"] as Tab[]).map((t) => (
+            {(["tables", "menu", "orders", "financials", "branding"] as Tab[]).map((t) => (
               <button key={t} onClick={() => setTab(t)}
                 style={{ background: "none", border: "none", borderBottom: tab === t ? `2px solid ${ACCENT}` : "2px solid transparent", color: tab === t ? ACCENT : MUTED, padding: isMobile ? "10px 14px" : "12px 24px", fontWeight: 700, fontSize: isMobile ? 13 : 14, cursor: "pointer", textTransform: "capitalize", letterSpacing: 0.5, transition: "color 0.15s", whiteSpace: "nowrap", flexShrink: 0 }}>
                 {t}
@@ -804,10 +881,23 @@ export default function DashboardPage() {
                       {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <label style={{ fontSize: 11, color: MUTED, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase" }}>Image (optional)</label>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      {itemImageFile && <span style={{ fontSize: 12, color: MUTED }}>{itemImageFile.name}</span>}
+                      <input ref={itemImageInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => setItemImageFile(e.target.files?.[0] ?? null)} />
+                      <button type="button" onClick={() => itemImageInputRef.current?.click()}
+                        style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "8px 14px", color: MUTED, fontSize: 12, cursor: "pointer" }}>
+                        {itemImageFile ? "Change image" : "Upload image"}
+                      </button>
+                      {itemImageFile && <button type="button" onClick={() => setItemImageFile(null)}
+                        style={{ background: "none", border: "none", color: MUTED, fontSize: 12, cursor: "pointer" }}>✕ Remove</button>}
+                    </div>
+                  </div>
                   {itemError && <p style={{ color: RED, fontSize: 12, margin: 0 }}>{itemError}</p>}
                   <div style={{ display: "flex", gap: 10 }}>
-                    <button type="submit" disabled={itemSaving} style={{ background: ACCENT, color: BG, border: "none", borderRadius: 8, padding: "10px 20px", fontWeight: 800, fontSize: 13, cursor: itemSaving ? "not-allowed" : "pointer" }}>{itemSaving ? "Saving…" : "Add item"}</button>
-                    <button type="button" onClick={() => { setAddingItem(false); setItemForm(EMPTY_ITEM); setItemError(""); }} style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "10px 20px", color: MUTED, fontSize: 13, cursor: "pointer" }}>Cancel</button>
+                    <button type="submit" disabled={itemSaving || itemImageUploading} style={{ background: ACCENT, color: BG, border: "none", borderRadius: 8, padding: "10px 20px", fontWeight: 800, fontSize: 13, cursor: (itemSaving || itemImageUploading) ? "not-allowed" : "pointer" }}>{itemSaving || itemImageUploading ? "Saving…" : "Add item"}</button>
+                    <button type="button" onClick={() => { setAddingItem(false); setItemForm(EMPTY_ITEM); setItemError(""); setItemImageFile(null); }} style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "10px 20px", color: MUTED, fontSize: 13, cursor: "pointer" }}>Cancel</button>
                   </div>
                 </form>
               )}
@@ -841,14 +931,26 @@ export default function DashboardPage() {
                                   </div>
                                   <input placeholder="Description (optional)" value={editItemForm.description} onChange={(e) => setEditItemForm((f) => ({ ...f, description: e.target.value }))}
                                     style={{ background: BG, border: `1px solid ${BORDER}`, borderRadius: 8, padding: "9px 12px", color: TEXT, fontSize: 14, outline: "none" }} />
+                                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                    {item.image_url && !editItemImageFile && <img src={item.image_url} alt="" style={{ width: 40, height: 40, borderRadius: 6, objectFit: "cover" }} />}
+                                    {editItemImageFile && <span style={{ fontSize: 12, color: MUTED }}>{editItemImageFile.name}</span>}
+                                    <input ref={editItemImageInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => setEditItemImageFile(e.target.files?.[0] ?? null)} />
+                                    <button type="button" onClick={() => editItemImageInputRef.current?.click()}
+                                      style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "6px 12px", color: MUTED, fontSize: 12, cursor: "pointer" }}>
+                                      {item.image_url || editItemImageFile ? "Change image" : "Add image"}
+                                    </button>
+                                    {editItemImageFile && <button type="button" onClick={() => setEditItemImageFile(null)}
+                                      style={{ background: "none", border: "none", color: MUTED, fontSize: 12, cursor: "pointer" }}>✕</button>}
+                                  </div>
                                   {itemEditError && <p style={{ color: RED, fontSize: 12, margin: 0 }}>{itemEditError}</p>}
                                   <div style={{ display: "flex", gap: 8 }}>
                                     <button type="submit" disabled={itemEditSaving} style={{ background: ACCENT, color: BG, border: "none", borderRadius: 8, padding: "8px 18px", fontWeight: 800, fontSize: 13, cursor: itemEditSaving ? "not-allowed" : "pointer" }}>{itemEditSaving ? "Saving…" : "Save"}</button>
-                                    <button type="button" onClick={() => { setEditingItemId(null); setItemEditError(""); }} style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "8px 16px", color: MUTED, fontSize: 13, cursor: "pointer" }}>Cancel</button>
+                                    <button type="button" onClick={() => { setEditingItemId(null); setItemEditError(""); setEditItemImageFile(null); }} style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "8px 16px", color: MUTED, fontSize: 13, cursor: "pointer" }}>Cancel</button>
                                   </div>
                                 </form>
                               ) : (
                                 <div key={item.id} style={{ ...card, padding: "14px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+                                  {item.image_url && <img src={item.image_url} alt="" style={{ width: 48, height: 48, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} />}
                                   <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1, minWidth: 0 }}>
                                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                                       <span style={{ fontWeight: 700, fontSize: 14 }}>{item.name}</span>
@@ -858,7 +960,7 @@ export default function DashboardPage() {
                                   </div>
                                   <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
                                     <span style={{ fontWeight: 800, fontSize: 15, color: ACCENT }}>${Number(item.price).toFixed(2)}</span>
-                                    <button onClick={() => { setEditingItemId(item.id); setEditItemForm({ name: item.name, price: String(item.price), description: item.description ?? "" }); setItemEditError(""); }}
+                                    <button onClick={() => { setEditingItemId(item.id); setEditItemForm({ name: item.name, price: String(item.price), description: item.description ?? "" }); setItemEditError(""); setEditItemImageFile(null); }}
                                       style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 6, padding: "5px 10px", color: MUTED, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Edit</button>
                                     <button onClick={() => deleteMenuItem(item.id)}
                                       style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 6, padding: "5px 10px", color: MUTED, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Delete</button>
@@ -1290,6 +1392,53 @@ export default function DashboardPage() {
               </div>
             );
           })()}
+
+          {/* Branding tab */}
+          {tab === "branding" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+              {brandingError && <p style={{ color: RED, fontSize: 13, margin: 0 }}>{brandingError}</p>}
+
+              {/* Logo */}
+              <div style={card}>
+                <p style={{ fontSize: 11, letterSpacing: 3, color: ACCENT, fontWeight: 700, textTransform: "uppercase", marginBottom: 20 }}>Logo</p>
+                <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
+                  {business.logo_url ? (
+                    <img src={business.logo_url} alt="Logo" style={{ width: 80, height: 80, borderRadius: 10, objectFit: "cover", border: `1px solid ${BORDER}` }} />
+                  ) : (
+                    <div style={{ width: 80, height: 80, borderRadius: 10, background: BG, border: `2px dashed ${BORDER}`, display: "flex", alignItems: "center", justifyContent: "center", color: MUTED, fontSize: 12 }}>No logo</div>
+                  )}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <p style={{ color: MUTED, fontSize: 13, margin: 0 }}>Appears next to your business name in the customer menu header.</p>
+                    <input ref={logoInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleLogoUpload} />
+                    <button onClick={() => logoInputRef.current?.click()} disabled={brandingLogoUploading}
+                      style={{ background: ACCENT, color: BG, border: "none", borderRadius: 8, padding: "10px 20px", fontWeight: 800, fontSize: 13, cursor: brandingLogoUploading ? "not-allowed" : "pointer", alignSelf: "flex-start" }}>
+                      {brandingLogoUploading ? "Uploading…" : business.logo_url ? "Replace Logo" : "Upload Logo"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Hero Image */}
+              <div style={card}>
+                <p style={{ fontSize: 11, letterSpacing: 3, color: ACCENT, fontWeight: 700, textTransform: "uppercase", marginBottom: 20 }}>Hero Image</p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  {business.hero_image_url ? (
+                    <img src={business.hero_image_url} alt="Hero" style={{ width: "100%", maxHeight: 200, borderRadius: 10, objectFit: "cover", border: `1px solid ${BORDER}` }} />
+                  ) : (
+                    <div style={{ width: "100%", height: 120, borderRadius: 10, background: BG, border: `2px dashed ${BORDER}`, display: "flex", alignItems: "center", justifyContent: "center", color: MUTED, fontSize: 12 }}>No hero image</div>
+                  )}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <p style={{ color: MUTED, fontSize: 13, margin: 0 }}>Displayed as a full-width banner at the top of your customer menu page.</p>
+                    <input ref={heroInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleHeroUpload} />
+                    <button onClick={() => heroInputRef.current?.click()} disabled={brandingHeroUploading}
+                      style={{ background: ACCENT, color: BG, border: "none", borderRadius: 8, padding: "10px 20px", fontWeight: 800, fontSize: 13, cursor: brandingHeroUploading ? "not-allowed" : "pointer", alignSelf: "flex-start" }}>
+                      {brandingHeroUploading ? "Uploading…" : business.hero_image_url ? "Replace Hero Image" : "Upload Hero Image"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

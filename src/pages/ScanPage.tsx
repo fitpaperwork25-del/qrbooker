@@ -38,7 +38,7 @@ export default function ScanPage() {
       const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
       // Accept both UUID and business slug (e.g. /scan/snelling-cafe/table-1)
-      const bizQ = supabase.from('businesses').select('id, name');
+      const bizQ = supabase.from('businesses').select('id, name, logo_url, hero_image_url');
       const { data: biz, error: bizErr } = await (UUID_RE.test(bizId)
         ? bizQ.eq('id', bizId)
         : bizQ.eq('slug', bizId)
@@ -384,8 +384,16 @@ export default function ScanPage() {
     <div style={S.page}>
 
       {/* Header */}
-      <div style={S.header}>
-        <h1 style={S.bizName}>{business?.name || 'Menu'}</h1>
+      <div>
+        {business?.hero_image_url && (
+          <img src={business.hero_image_url} alt="" style={{ width: '100%', height: 180, objectFit: 'cover', display: 'block' }} />
+        )}
+        <div style={{ ...S.header, display: 'flex', alignItems: 'center', gap: 12 }}>
+          {business?.logo_url && (
+            <img src={business.logo_url} alt="" style={{ width: 44, height: 44, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} />
+          )}
+          <h1 style={S.bizName}>{business?.name || 'Menu'}</h1>
+        </div>
       </div>
 
       {/* Tab banner */}
@@ -444,16 +452,21 @@ export default function ScanPage() {
                     {item.description && <div style={S.itemDesc}>{item.description}</div>}
                     <div style={S.itemPrice}>${item.price.toFixed(2)}</div>
                   </div>
-                  <div style={S.itemControls}>
-                    {cart[item.id] ? (
-                      <div style={S.qtyRow}>
-                        <button style={S.qtyBtn} onClick={() => removeFromCart(item.id)}>−</button>
-                        <span style={S.qtyNum}>{cart[item.id]}</span>
-                        <button style={S.qtyBtn} onClick={() => addToCart(item)}>+</button>
-                      </div>
-                    ) : (
-                      <button style={S.addBtn} onClick={() => addToCart(item)}>Add</button>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, flexShrink: 0 }}>
+                    {item.image_url && (
+                      <img src={item.image_url} alt={item.name} style={{ width: 72, height: 72, borderRadius: 8, objectFit: 'cover' }} />
                     )}
+                    <div style={S.itemControls}>
+                      {cart[item.id] ? (
+                        <div style={S.qtyRow}>
+                          <button style={S.qtyBtn} onClick={() => removeFromCart(item.id)}>−</button>
+                          <span style={S.qtyNum}>{cart[item.id]}</span>
+                          <button style={S.qtyBtn} onClick={() => addToCart(item)}>+</button>
+                        </div>
+                      ) : (
+                        <button style={S.addBtn} onClick={() => addToCart(item)}>Add</button>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
