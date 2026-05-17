@@ -378,6 +378,111 @@ export default function DashboardPage() {
     a.click();
   }
 
+  // ── Download Card (branded 6×4 PNG, 1800×1200) ──────────
+  async function downloadCard(loc: Location) {
+    if (!business) return;
+    const scanUrl = `${window.location.origin}/scan/${business.id}/${loc.id}`;
+
+    // Generate QR as data URL (white bg, black marks)
+    const qrDataUrl = await QRCode.toDataURL(scanUrl, {
+      width: 560,
+      margin: 1,
+      color: { dark: "#000000", light: "#ffffff" },
+    });
+
+    const W = 1800, H = 1200;
+    const canvas = document.createElement("canvas");
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext("2d")!;
+
+    // Background
+    ctx.fillStyle = "#080808";
+    ctx.fillRect(0, 0, W, H);
+
+    // Outer border
+    ctx.strokeStyle = "#E8C54740";
+    ctx.lineWidth = 3;
+    ctx.strokeRect(36, 36, W - 72, H - 72);
+
+    // ── Wordmark: "QR" white + "Serve" gold ─────────────
+    ctx.font = "900 80px 'Arial Black', Arial, sans-serif";
+    const qrW = ctx.measureText("QR").width;
+    const serveW = ctx.measureText("Serve").width;
+    const wordX = (W - qrW - serveW) / 2;
+    ctx.textBaseline = "alphabetic";
+    ctx.fillStyle = "#F0EDE8";
+    ctx.fillText("QR", wordX, 148);
+    ctx.fillStyle = "#E8C547";
+    ctx.fillText("Serve", wordX + qrW, 148);
+
+    // Tagline
+    ctx.font = "500 28px Arial, sans-serif";
+    ctx.fillStyle = "#C8C4BC";
+    ctx.textAlign = "center";
+    ctx.fillText("SCAN · ORDER · SERVE", W / 2, 194);
+
+    // Gold underline
+    const lineHalf = 260;
+    ctx.strokeStyle = "#E8C547";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(W / 2 - lineHalf, 206);
+    ctx.lineTo(W / 2 + lineHalf, 206);
+    ctx.stroke();
+
+    // Business name
+    ctx.font = "700 46px Arial, sans-serif";
+    ctx.fillStyle = "#F0EDE8";
+    ctx.textAlign = "center";
+    ctx.fillText(business.name, W / 2, 282);
+
+    // ── QR code ──────────────────────────────────────────
+    const qrImg = new Image();
+    await new Promise<void>((resolve) => { qrImg.onload = () => resolve(); qrImg.src = qrDataUrl; });
+
+    const qrSize = 580;
+    const qrX = (W - qrSize) / 2;
+    const qrY = 318;
+
+    // White rounded bg
+    const pad = 20;
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath();
+    const rx = qrX - pad, ry = qrY - pad, rw = qrSize + pad * 2, rh = qrSize + pad * 2, r = 18;
+    ctx.moveTo(rx + r, ry);
+    ctx.lineTo(rx + rw - r, ry); ctx.arcTo(rx + rw, ry, rx + rw, ry + r, r);
+    ctx.lineTo(rx + rw, ry + rh - r); ctx.arcTo(rx + rw, ry + rh, rx + rw - r, ry + rh, r);
+    ctx.lineTo(rx + r, ry + rh); ctx.arcTo(rx, ry + rh, rx, ry + rh - r, r);
+    ctx.lineTo(rx, ry + r); ctx.arcTo(rx, ry, rx + r, ry, r);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
+
+    // ── Table name ───────────────────────────────────────
+    ctx.font = "900 56px 'Arial Black', Arial, sans-serif";
+    ctx.fillStyle = "#E8C547";
+    ctx.textAlign = "center";
+    ctx.fillText(loc.name, W / 2, 1040);
+
+    // Scan instruction
+    ctx.font = "400 30px Arial, sans-serif";
+    ctx.fillStyle = "#C8C4BC";
+    ctx.fillText("Point your camera at the code to order", W / 2, 1092);
+
+    // URL (small, muted)
+    ctx.font = "400 20px monospace";
+    ctx.fillStyle = "#444444";
+    ctx.fillText(scanUrl, W / 2, 1148);
+
+    // Download
+    const a = document.createElement("a");
+    a.href = canvas.toDataURL("image/png");
+    a.download = `card-${loc.name.toLowerCase().replace(/\s+/g, "-")}.png`;
+    a.click();
+  }
+
   // ── CSV Import Functions ─────────────────────────────────
   function downloadCsvTemplate() {
     const template = "category,name,price,description\nSalads,Caesar Salad,12.50,Romaine lettuce with Caesar dressing\nMains,Grilled Chicken,15.99,Served with fries and salad\n";
@@ -435,7 +540,6 @@ export default function DashboardPage() {
 
     setCsvImporting(true); setCsvError("");
 
-    // Get or create categories
     const catNames = [...new Set(validRows.map((r) => r.category))];
     const catMap: Record<string, string> = {};
 
@@ -453,7 +557,6 @@ export default function DashboardPage() {
       }
     }
 
-    // Insert all items
     const itemInserts = validRows.map((row, idx) => ({
       category_id:   catMap[row.category],
       name:          row.name,
@@ -600,6 +703,7 @@ export default function DashboardPage() {
                       {loc.label && <div style={{ color: MUTED, fontSize: 13 }}>{loc.label}</div>}
                       <span style={{ ...badge(loc.is_active ? GREEN : MUTED), alignSelf: "flex-start" }}>{loc.is_active ? "active" : "inactive"}</span>
                       <button onClick={() => downloadQR(loc)} style={{ marginTop: 4, background: "none", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "9px 14px", color: ACCENT, fontSize: 12, fontWeight: 700, cursor: "pointer", textAlign: "left" }}>↓ Download QR</button>
+                      <button onClick={() => downloadCard(loc)} style={{ background: "none", border: `1px solid ${ACCENT}55`, borderRadius: 8, padding: "9px 14px", color: ACCENT, fontSize: 12, fontWeight: 700, cursor: "pointer", textAlign: "left" }}>↓ Download Card</button>
                     </div>
                   ))}
                 </div>
@@ -641,7 +745,6 @@ export default function DashboardPage() {
                     </div>
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 320, overflowY: "auto" }}>
-                    {/* Header */}
                     <div style={{ display: "grid", gridTemplateColumns: "2fr 3fr 1fr 3fr 1fr", gap: 8, padding: "6px 10px" }}>
                       {["Category", "Name", "Price", "Description", ""].map((h) => (
                         <span key={h} style={{ fontSize: 10, color: MUTED, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase" }}>{h}</span>
