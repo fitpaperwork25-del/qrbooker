@@ -163,7 +163,25 @@ export default function LandingPage() {
           <img src="/logo.png" alt="QR-Wegn" style={{ height: 32, width: "auto" }} />
           <span style={{ fontWeight: 800, fontSize: 17, letterSpacing: 1, color: TEXT }}>QR-Wegn</span>
         </div>
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
+          {/* Earn With Us */}
+          <button
+            onClick={() => document.getElementById("promoter")?.scrollIntoView({ behavior: "smooth" })}
+            style={{
+              background:   "none",
+              border:       `1px solid ${ACCENT}`,
+              borderRadius: 8,
+              padding:      "8px 14px",
+              color:        ACCENT,
+              cursor:       "pointer",
+              fontSize:     13,
+              fontWeight:   700,
+              whiteSpace:   "nowrap",
+            }}
+          >
+            Earn With Us
+          </button>
+
           {/* Try Demo */}
           <div ref={demoRef} style={{ position: "relative" }}>
             <button
@@ -326,7 +344,7 @@ export default function LandingPage() {
       </section>
 
       {/* Become a Promoter */}
-      <section style={{ background: SURFACE, borderTop: `1px solid ${BORDER}`, borderBottom: `1px solid ${BORDER}`, padding: "80px 24px", textAlign: "center" }}>
+      <section id="promoter" style={{ background: SURFACE, borderTop: `1px solid ${BORDER}`, borderBottom: `1px solid ${BORDER}`, padding: "80px 24px", textAlign: "center" }}>
         <div style={{ maxWidth: 640, margin: "0 auto" }}>
           <p style={{ fontSize: 11, letterSpacing: 4, color: ACCENT, fontWeight: 700, textTransform: "uppercase", marginBottom: 20 }}>
             Promoter Program
