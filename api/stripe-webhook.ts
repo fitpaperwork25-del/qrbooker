@@ -58,6 +58,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           stripe_subscription_id: session.subscription as string,
           current_period_end:     new Date(sub.items.data[0].current_period_end * 1000).toISOString(),
         }).eq("id", businessId);
+
+        // Auto-populate onboarding tracker
+        const { data: bizData } = await supabase
+          .from("businesses")
+          .select("name")
+          .eq("id", businessId)
+          .single();
+
+        await supabase.from("onboarding_clients").insert({
+          business_name: bizData?.name ?? "Unknown",
+          owner_email:   session.customer_details?.email ?? "",
+          plan,
+          status:        "registered",
+          progress:      0,
+        });
         break;
       }
 
