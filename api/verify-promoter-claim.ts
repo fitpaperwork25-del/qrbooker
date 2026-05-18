@@ -37,24 +37,58 @@ async function hasActiveStripeSubscription(email: string): Promise<boolean> {
 }
 
 const TALLY_LABEL_MAP: Record<string, string> = {
-  "full name":              "promoter_name",
-  "email address":          "promoter_email",
-  "restaurant email":       "restaurant_email",
-  "plan signed up for":     "plan",
-  "payment method":         "payment_method",
-  "payment details":        "payment_details",
-  "date of sale":           "date_of_sale",
+  "full name":          "promoter_name",
+  "email address":      "promoter_email",
+  "restaurant email":   "restaurant_email",
+  "plan signed up for": "plan",
+  "payment method":     "payment_method",
+  "payment details":    "payment_details",
+  "date of sale":       "date_of_sale",
 };
 
+// Fields with null labels identified by their Tally key
+const TALLY_KEY_MAP: Record<string, string> = {
+  "question_dPZDlo": "restaurant_email",
+};
+
+interface TallyField {
+  label: string | null;
+  key:   string;
+  type:  string;
+  value: any;
+  options?: { id: string; text: string }[];
+}
+
 function parseTallyFields(body: any): Record<string, string> {
-  const fields: { label: string; value: any }[] = body?.data?.fields ?? [];
+  const fields: TallyField[] = body?.data?.fields ?? [];
   const result: Record<string, string> = {};
+
   for (const field of fields) {
-    const key = TALLY_LABEL_MAP[field.label?.toLowerCase().trim()];
-    if (key && field.value != null && field.value !== "") {
-      result[key] = String(field.value);
+    const internalKey =
+      (field.key && TALLY_KEY_MAP[field.key]) ||
+      (field.label && TALLY_LABEL_MAP[field.label.toLowerCase().trim()]);
+
+    if (!internalKey) continue;
+
+    let value = field.value;
+    if (value == null || value === "") continue;
+
+    // Resolve DROPDOWN UUID array to the matching option text
+    if (field.type === "DROPDOWN" && Array.isArray(value) && field.options) {
+      const matched = field.options.find((o) => value.includes(o.id));
+      value = matched?.text ?? "";
     }
+
+    if (!value) continue;
+
+    // For plan, keep only the name before " - " and lowercase (e.g. "Starter - $49/mo" → "starter")
+    if (internalKey === "plan") {
+      value = String(value).split(" - ")[0].trim().toLowerCase();
+    }
+
+    result[internalKey] = String(value);
   }
+
   return result;
 }
 
