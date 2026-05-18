@@ -19,8 +19,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // fitpaperwork25@gmail.com is blocked by a stale auth.identities/flow_state
   // record that requires SQL to clear. Use etbarekh@me.com (already active)
   // as the admin account instead.
-  const ADMIN_EMAIL = "etbarekh@me.com";
-  const KNOWN_USER_ID = "d8b86f7c-212f-4a9c-9fc9-7edadb6d788a";
+  const ADMIN_EMAIL = "etbarekh@gmail.com";
+  const KNOWN_USER_ID = "12fd42fd-b9f4-4e55-aefa-2cda24670e6d";
 
   // Check if a business already exists for this user
   const { data: existing } = await supabase
