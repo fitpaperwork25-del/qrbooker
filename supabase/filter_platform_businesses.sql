@@ -1,4 +1,5 @@
 -- Exclude platform-type businesses from the admin client list.
+-- Also returns b.type so the frontend can double-filter if needed.
 -- Run in Supabase SQL editor (project yizvlbupvamsietgjtys).
 
 CREATE OR REPLACE FUNCTION get_admin_businesses()
@@ -6,6 +7,7 @@ RETURNS TABLE (
   id                  uuid,
   name                text,
   slug                text,
+  type                text,
   plan                text,
   subscription_status text,
   created_at          timestamptz,
@@ -25,7 +27,7 @@ BEGIN
   END IF;
   RETURN QUERY
   SELECT
-    b.id, b.name, b.slug, b.plan, b.subscription_status, b.created_at,
+    b.id, b.name, b.slug, b.type, b.plan, b.subscription_status, b.created_at,
     u.email::text,
     b.staff_pin,
     COUNT(DISTINCT l.id)::bigint,
@@ -41,7 +43,7 @@ BEGIN
   LEFT JOIN orders o           ON o.business_id  = b.id
   LEFT JOIN admin_checklist ac ON ac.business_id = b.id
   WHERE b.type IS DISTINCT FROM 'platform'
-  GROUP BY b.id, b.name, b.slug, b.plan, b.subscription_status,
+  GROUP BY b.id, b.name, b.slug, b.type, b.plan, b.subscription_status,
            b.created_at, u.email, b.staff_pin, ac.qr_printed, ac.staff_trained
   ORDER BY b.created_at DESC;
 END;

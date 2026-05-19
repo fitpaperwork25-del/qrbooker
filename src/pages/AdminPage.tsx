@@ -25,7 +25,7 @@ const PLAN_MRR: Record<string, number> = { starter: 49, pro: 99, enterprise: 199
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type AdminBiz = {
-  id: string; name: string; slug: string; plan: string;
+  id: string; name: string; slug: string; type: string; plan: string;
   subscription_status: string; created_at: string;
   owner_email: string | null; staff_pin: string | null;
   location_count: number; menu_item_count: number; order_count: number;
@@ -111,7 +111,8 @@ export default function AdminPage() {
   const [togglingCheck, setTogglingCheck] = useState<string | null>(null);
   const [copied,        setCopied]        = useState<string | null>(null);
 
-  // Tabs & promoter claims
+  // Tabs, search & promoter claims
+  const [searchQuery,   setSearchQuery]   = useState("");
   const [activeTab,     setActiveTab]     = useState<"clients" | "claims">("clients");
   const [claims,        setClaims]        = useState<PromoterClaim[]>([]);
   const [claimsLoaded,  setClaimsLoaded]  = useState(false);
@@ -574,12 +575,20 @@ export default function AdminPage() {
     </div>
   );
 
-  // ── Stats ─────────────────────────────────────────────────────────────────
-  const live        = businesses.filter(b => b.order_count > 0).length;
-  const inProgress  = businesses.filter(b => b.order_count === 0 && b.location_count > 0 && b.menu_item_count > 0).length;
-  const notStarted  = businesses.filter(b => b.location_count === 0 || b.menu_item_count === 0).length;
-  const mrr         = businesses.filter(b => b.subscription_status === "active").reduce((s, b) => s + (PLAN_MRR[b.plan] ?? 0), 0);
-  const totalOrders = businesses.reduce((s, b) => s + b.order_count, 0);
+  // ── Stats (platform businesses excluded from all counts) ─────────────────
+  const clientBiz   = businesses.filter(b => b.type !== "platform");
+  const q           = searchQuery.trim().toLowerCase();
+  const searchedBiz = q
+    ? clientBiz.filter(b =>
+        b.name.toLowerCase().includes(q) ||
+        (b.owner_email ?? "").toLowerCase().includes(q)
+      )
+    : clientBiz;
+  const live        = clientBiz.filter(b => b.order_count > 0).length;
+  const inProgress  = clientBiz.filter(b => b.order_count === 0 && b.location_count > 0 && b.menu_item_count > 0).length;
+  const notStarted  = clientBiz.filter(b => b.location_count === 0 || b.menu_item_count === 0).length;
+  const mrr         = clientBiz.filter(b => b.subscription_status === "active").reduce((s, b) => s + (PLAN_MRR[b.plan] ?? 0), 0);
+  const totalOrders = clientBiz.reduce((s, b) => s + b.order_count, 0);
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -592,7 +601,7 @@ export default function AdminPage() {
             <div>
               <p style={{ fontSize: 10, letterSpacing: 3, color: ACCENT, fontWeight: 700, textTransform: "uppercase", margin: "0 0 4px" }}>Super Admin</p>
               <h1 style={{ margin: 0, fontSize: 20, fontWeight: 900 }}>
-                Client Success — {businesses.length} business{businesses.length !== 1 ? "es" : ""}
+                Client Success — {clientBiz.length} business{clientBiz.length !== 1 ? "es" : ""}
               </h1>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
@@ -637,7 +646,7 @@ export default function AdminPage() {
                   textTransform: "uppercase", letterSpacing: 1,
                 }}
               >
-                {tab === "clients" ? `Clients (${businesses.length})` : "Promoter Claims"}
+                {tab === "clients" ? `Clients (${clientBiz.length})` : "Promoter Claims"}
               </button>
             ))}
           </div>
@@ -711,7 +720,18 @@ export default function AdminPage() {
       {/* ── Clients tab ─────────────────────────────────────────────────────── */}
       {activeTab === "clients" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-        {businesses.map((biz) => {
+          <input
+            type="search"
+            placeholder="Search by business name or owner email…"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            style={{
+              background: CARD, border: `1px solid ${BORDER}`, borderRadius: 9,
+              padding: "11px 16px", color: TEXT, fontSize: 14, outline: "none",
+              width: "100%", boxSizing: "border-box", fontFamily: "sans-serif",
+            }}
+          />
+        {searchedBiz.map((biz) => {
           const deploy   = deployStatus(biz);
           const bizNotes = notes[biz.id] ?? [];
 
@@ -984,9 +1004,9 @@ export default function AdminPage() {
           );
         })}
 
-        {businesses.length === 0 && (
+        {searchedBiz.length === 0 && (
           <div style={{ textAlign: "center", padding: "80px 24px", color: MUTED, fontSize: 14 }}>
-            No businesses yet. Click "+ New Client" to add one.
+            {q ? `No businesses match "${searchQuery}".` : "No businesses yet. Click \"+ New Client\" to add one."}
           </div>
         )}
         </div>
