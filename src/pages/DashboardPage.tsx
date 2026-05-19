@@ -460,19 +460,19 @@ export default function DashboardPage() {
     // ── Wordmark: "QR" white + "Serve" gold ─────────────
     ctx.font = "900 80px 'Arial Black', Arial, sans-serif";
     const qrW = ctx.measureText("QR").width;
-    const serveW = ctx.measureText("Serve").width;
+    const serveW = ctx.measureText("Wegn").width;
     const wordX = (W - qrW - serveW) / 2;
     ctx.textBaseline = "alphabetic";
     ctx.fillStyle = "#F0EDE8";
     ctx.fillText("QR", wordX, 148);
     ctx.fillStyle = "#E8C547";
-    ctx.fillText("Serve", wordX + qrW, 148);
+    ctx.fillText("Wegn", wordX + qrW, 148);
 
     // Tagline
     ctx.font = "500 28px Arial, sans-serif";
     ctx.fillStyle = "#C8C4BC";
     ctx.textAlign = "center";
-    ctx.fillText("SCAN · ORDER · SERVE", W / 2, 194);
+    ctx.fillText("SCAN · ORDER · ENJOY", W / 2, 194);
 
     // Gold underline
     const lineHalf = 260;

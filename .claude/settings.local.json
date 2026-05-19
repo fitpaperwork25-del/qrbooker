@@ -35,7 +35,16 @@
       "PowerShell(Stop-Process *)",
       "Bash(cat .env.local)",
       "Bash(cat .env)",
-      "Bash(curl *)"
+      "Bash(curl *)",
+      "Bash(Test-Path *)",
+      "Bash(vercel project *)",
+      "Bash(vercel logs *)",
+      "Bash(grep -oP 'fitpaperwork25.{0,200}admin.{0,100}dashboard')",
+      "Bash(grep -oP '.{0,30}Invite Owner.{0,30}')",
+      "Bash(node -e ' *)",
+      "Bash(node *)",
+      "Bash(python *)",
+      "Bash(grep -oP 'eyJ[A-Za-z0-9_\\\\-]{100,}')"
     ]
   }
 }
