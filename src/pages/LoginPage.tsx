@@ -45,7 +45,8 @@ export default function LoginPage() {
         : err.message);
       setLoading(false);
     } else {
-      navigate(from, { replace: true });
+      const dest = email.trim().toLowerCase() === "fitpaperwork25@gmail.com" ? "/admin" : from;
+      navigate(dest, { replace: true });
     }
   };
 

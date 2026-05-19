@@ -21,6 +21,7 @@ const BLUE   = "#3B82F6";
 
 const BIZ_TYPES = ["restaurant","cafe","barbershop","salon","hotel","platform"] as const;
 const QUICK_NOTES = ["QR code printed 🖨️","Staff trained ✅","Went live 🚀","Follow-up call 📞","Issue reported ⚠️"];
+const PLAN_MRR: Record<string, number> = { starter: 49, pro: 99, enterprise: 199 };
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type AdminBiz = {
@@ -32,6 +33,12 @@ type AdminBiz = {
 };
 type AdminNote = { id: string; business_id: string; note: string; created_at: string };
 type TableLoc  = { id: string; name: string; label: string | null };
+type PromoterClaim = {
+  id: string; promoter_name: string; promoter_email: string; restaurant_email: string;
+  plan: string; commission_amount: number; status: string;
+  payment_method: string | null; payment_details: string | null;
+  date_of_sale: string | null; created_at: string;
+};
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function deployStatus(b: AdminBiz): { label: string; color: string } {
@@ -103,6 +110,13 @@ export default function AdminPage() {
   const [savingNote,    setSavingNote]    = useState<string | null>(null);
   const [togglingCheck, setTogglingCheck] = useState<string | null>(null);
   const [copied,        setCopied]        = useState<string | null>(null);
+
+  // Tabs & promoter claims
+  const [activeTab,     setActiveTab]     = useState<"clients" | "claims">("clients");
+  const [claims,        setClaims]        = useState<PromoterClaim[]>([]);
+  const [claimsLoaded,  setClaimsLoaded]  = useState(false);
+  const [loadingClaims, setLoadingClaims] = useState(false);
+  const [claimsError,   setClaimsError]   = useState("");
 
   // New Client modal
   const [showNewClient, setShowNewClient] = useState(false);
@@ -194,6 +208,21 @@ export default function AdminPage() {
     await navigator.clipboard.writeText(text);
     setCopied(key);
     setTimeout(() => setCopied(null), 1500);
+  }
+
+  async function loadClaims() {
+    if (claimsLoaded) return;
+    setLoadingClaims(true);
+    setClaimsError("");
+    const { data, error } = await supabase.rpc("get_promoter_claims");
+    if (error) setClaimsError(error.message);
+    else { setClaims((data ?? []) as PromoterClaim[]); setClaimsLoaded(true); }
+    setLoadingClaims(false);
+  }
+
+  function switchTab(tab: "clients" | "claims") {
+    setActiveTab(tab);
+    if (tab === "claims") void loadClaims();
   }
 
   async function openOwnerDashboard(biz: AdminBiz) {
@@ -546,9 +575,11 @@ export default function AdminPage() {
   );
 
   // ── Stats ─────────────────────────────────────────────────────────────────
-  const live       = businesses.filter(b => b.order_count > 0).length;
-  const inProgress = businesses.filter(b => b.order_count === 0 && b.location_count > 0 && b.menu_item_count > 0).length;
-  const notStarted = businesses.filter(b => b.location_count === 0 || b.menu_item_count === 0).length;
+  const live        = businesses.filter(b => b.order_count > 0).length;
+  const inProgress  = businesses.filter(b => b.order_count === 0 && b.location_count > 0 && b.menu_item_count > 0).length;
+  const notStarted  = businesses.filter(b => b.location_count === 0 || b.menu_item_count === 0).length;
+  const mrr         = businesses.filter(b => b.subscription_status === "active").reduce((s, b) => s + (PLAN_MRR[b.plan] ?? 0), 0);
+  const totalOrders = businesses.reduce((s, b) => s + b.order_count, 0);
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
