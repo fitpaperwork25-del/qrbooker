@@ -162,7 +162,7 @@ export default function AdminPage() {
 
     if (bizRes.error) { setError(bizRes.error.message); setLoading(false); return; }
 
-    const bizList      = (bizRes.data    ?? []) as AdminBiz[];
+    const bizList      = ((bizRes.data ?? []) as AdminBiz[]).filter(b => b.type !== "platform");
     const existingNotifs = notifsRes.error ? [] : (notifsRes.data ?? []) as AdminNotification[];
     setBusinesses(bizList);
     setNotifications(existingNotifs);
