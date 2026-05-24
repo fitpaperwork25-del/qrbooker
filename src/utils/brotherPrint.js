@@ -58,7 +58,8 @@ export async function printBrotherLabels({ businessSlug, tables }) {
   }
 
   try {
-    await IDocument.StartPrint("QR-Wegn Labels", 0);
+    // Start print with cut option enabled
+    await IDocument.StartPrint("QR-Wegn Labels", 1);
 
     for (let i = 0; i < tables.length; i++) {
       const table = tables[i];
@@ -88,7 +89,7 @@ export async function printBrotherLabels({ businessSlug, tables }) {
       tableObj.Text = tableName;
       await qrObj.SetData(0, qrDataUrl, 4);
 
-      // Auto-cut enabled
+      // Print each label with auto-cut enabled
       await IDocument.PrintOut(1, 1);
     }
 
