@@ -10,8 +10,6 @@ const TEXT    = "#F0EDE8";
 const MUTED   = "#666666";
 const SURFACE = "#111111";
 
-// ── Demo dropdown ─────────────────────────────────────────────────────────────
-
 interface DemoDropdownProps {
   onClose: () => void;
 }
@@ -21,63 +19,63 @@ function DemoDropdown({ onClose }: DemoDropdownProps) {
 
   function goCustomer() {
     onClose();
-    navigate("/scan/demo-restaurant");
+    navigate("/scan/demo-barbershop");
   }
 
   function goStaff() {
     onClose();
     navigate("/staff-login", {
-      state: { demoSlug: "demo-restaurant", demoPin: "1234" },
+      state: { demoSlug: "demo-barbershop", demoPin: "1234" },
     });
   }
 
   function goOwner() {
     onClose();
     navigate("/login", {
-      state: { from: "/dashboard", demoEmail: "demo@qrserve.app", demoPassword: "Demo2026" },
+      state: { from: "/dashboard", demoEmail: "demo@qrbooker.com", demoPassword: "Demo2026" },
     });
   }
 
   const items = [
     {
-      key:     "customer" as const,
-      icon:    "📱",
-      label:   "Customer View",
-      sub:     "Scan a table, browse the menu & order",
-      action:  goCustomer,
-      color:   "#4CAF50",
+      key:    "customer" as const,
+      icon:   "📱",
+      label:  "Customer View",
+      sub:    "Scan & book an appointment",
+      action: goCustomer,
+      color:  "#4CAF50",
     },
     {
-      key:     "staff" as const,
-      icon:    "👨‍🍳",
-      label:   "Staff Kitchen",
-      sub:     "Kitchen display — manage live orders",
-      action:  goStaff,
-      color:   "#F97316",
+      key:    "staff" as const,
+      icon:   "✂️",
+      label:  "Staff View",
+      sub:    "Manage today's appointments",
+      action: goStaff,
+      color:  "#F97316",
     },
     {
-      key:     "owner" as const,
-      icon:    "📊",
-      label:   "Owner Dashboard",
-      sub:     "Full business management view",
-      action:  goOwner,
-      color:   ACCENT,
+      key:    "owner" as const,
+      icon:   "📊",
+      label:  "Owner Dashboard",
+      sub:    "Full business management view",
+      action: goOwner,
+      color:  ACCENT,
     },
   ];
 
   return (
     <div
       style={{
-        position:    "absolute",
-        top:         "calc(100% + 8px)",
-        right:       0,
-        zIndex:      100,
-        background:  SURFACE,
-        border:      `1px solid ${BORDER}`,
+        position:     "absolute",
+        top:          "calc(100% + 8px)",
+        right:        0,
+        zIndex:       100,
+        background:   SURFACE,
+        border:       `1px solid ${BORDER}`,
         borderRadius: 14,
-        padding:     8,
-        minWidth:    280,
-        boxShadow:   "0 16px 48px rgba(0,0,0,0.6)",
+        padding:      8,
+        minWidth:     280,
+        boxShadow:    "0 16px 48px rgba(0,0,0,0.6)",
       }}
     >
       {items.map((item, i) => (
@@ -85,18 +83,18 @@ function DemoDropdown({ onClose }: DemoDropdownProps) {
           key={item.key}
           onClick={item.action}
           style={{
-            display:        "flex",
-            alignItems:     "center",
-            gap:            14,
-            width:          "100%",
-            background:     "transparent",
-            border:         "none",
-            borderRadius:   10,
-            padding:        "12px 14px",
-            cursor:         "pointer",
-            textAlign:      "left",
-            marginBottom:   i < items.length - 1 ? 2 : 0,
-            transition:     "background 0.12s",
+            display:      "flex",
+            alignItems:   "center",
+            gap:          14,
+            width:        "100%",
+            background:   "transparent",
+            border:       "none",
+            borderRadius: 10,
+            padding:      "12px 14px",
+            cursor:       "pointer",
+            textAlign:    "left",
+            marginBottom: i < items.length - 1 ? 2 : 0,
+            transition:   "background 0.12s",
           }}
           onMouseEnter={(e) => {
             (e.currentTarget as HTMLButtonElement).style.background = item.color + "14";
@@ -107,9 +105,7 @@ function DemoDropdown({ onClose }: DemoDropdownProps) {
         >
           <span style={{ fontSize: 22, flexShrink: 0 }}>{item.icon}</span>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontWeight: 700, fontSize: 14, color: TEXT }}>
-              {item.label}
-            </div>
+            <div style={{ fontWeight: 700, fontSize: 14, color: TEXT }}>{item.label}</div>
             <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>{item.sub}</div>
           </div>
           <span style={{ color: item.color, fontSize: 16, flexShrink: 0 }}>→</span>
@@ -119,18 +115,14 @@ function DemoDropdown({ onClose }: DemoDropdownProps) {
   );
 }
 
-// ── Page ──────────────────────────────────────────────────────────────────────
-
 export default function LandingPage() {
   const navigate = useNavigate();
-  const [email, setEmail]       = useState("");
+  const [email, setEmail]         = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [demoOpen, setDemoOpen]   = useState(false);
   const demoRef = useRef<HTMLDivElement>(null);
 
-  // When Supabase redirects back here after a magic-link click (hash contains
-  // access_token), wait for the SIGNED_IN event and forward to the right page.
   useEffect(() => {
     if (!window.location.hash.includes("access_token")) return;
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -143,14 +135,13 @@ export default function LandingPage() {
   }, [navigate]);
 
   useEffect(() => {
-    QRCode.toDataURL("https://qrwegn.com", {
-      width: 200,
+    QRCode.toDataURL("https://qrbooker.com", {
+      width:  200,
       margin: 2,
-      color: { dark: "#000000", light: "#ffffff" },
+      color:  { dark: "#000000", light: "#ffffff" },
     }).then(setQrDataUrl);
   }, []);
 
-  // Close dropdown on outside click
   useEffect(() => {
     if (!demoOpen) return;
     function handleClick(e: MouseEvent) {
@@ -174,29 +165,10 @@ export default function LandingPage() {
       {/* Nav */}
       <nav style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 32px", borderBottom: `1px solid ${BORDER}` }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <img src="/logo.png" alt="QR-Wegn" style={{ height: 32, width: "auto" }} />
-          <span style={{ fontWeight: 800, fontSize: 17, letterSpacing: 1, color: TEXT }}>QR-Wegn</span>
+          <img src="/logo.png" alt="QRBooker" style={{ height: 32, width: "auto" }} />
+          <span style={{ fontWeight: 800, fontSize: 17, letterSpacing: 1, color: TEXT }}>QRBooker</span>
         </div>
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
-          {/* Earn With Us */}
-          <button
-            onClick={() => document.getElementById("promoter")?.scrollIntoView({ behavior: "smooth" })}
-            style={{
-              background:   "none",
-              border:       `1px solid ${ACCENT}`,
-              borderRadius: 8,
-              padding:      "8px 14px",
-              color:        ACCENT,
-              cursor:       "pointer",
-              fontSize:     13,
-              fontWeight:   700,
-              whiteSpace:   "nowrap",
-            }}
-          >
-            Earn With Us
-          </button>
-
-          {/* Try Demo */}
           <div ref={demoRef} style={{ position: "relative" }}>
             <button
               onClick={() => setDemoOpen((o) => !o)}
@@ -219,7 +191,6 @@ export default function LandingPage() {
             </button>
             {demoOpen && <DemoDropdown onClose={() => setDemoOpen(false)} />}
           </div>
-
           <button
             onClick={() => navigate("/staff-login")}
             style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "8px 16px", color: MUTED, cursor: "pointer", fontSize: 13, fontWeight: 600 }}
@@ -238,15 +209,15 @@ export default function LandingPage() {
       {/* Hero */}
       <main style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "80px 24px", textAlign: "center" }}>
         <p style={{ fontSize: 11, letterSpacing: 4, color: ACCENT, fontWeight: 700, textTransform: "uppercase", marginBottom: 24 }}>
-          QR-powered hospitality
+          QR-Powered Booking
         </p>
         <h1 style={{ fontSize: "clamp(40px, 8vw, 72px)", fontWeight: 900, lineHeight: 1.05, letterSpacing: -2, maxWidth: 800, margin: "0 0 24px", color: TEXT }}>
-          Your menu. Your orders.{" "}
-          <span style={{ color: ACCENT }}>Zero friction.</span>
+          Your chair. Your clients.{" "}
+          <span style={{ color: ACCENT }}>Zero no-shows.</span>
         </h1>
         <p style={{ fontSize: 17, color: MUTED, maxWidth: 500, lineHeight: 1.7, margin: "0 0 48px" }}>
-          Give every table a QR code. Customers scan, order, and pay — no app needed.
-          Built for restaurants, cafes, barbershops, salons, and hotels.
+          Give every barber a QR code. Clients scan, book, and show up — no phone tag, no app needed.
+          Built for barbershops and salons.
         </p>
         <div style={{ display: "flex", gap: 14, flexWrap: "wrap", justifyContent: "center" }}>
           <button
@@ -268,10 +239,10 @@ export default function LandingPage() {
       <div style={{ borderTop: `1px solid ${BORDER}`, display: "flex", justifyContent: "center", flexWrap: "wrap" }}>
         {(
           [
-            { label: "Instant QR codes", sub: "One per table or room" },
-            { label: "Live orders",      sub: "Real-time staff dashboard" },
-            { label: "No app required",  sub: "Customers scan & go" },
-            { label: "Stripe payments",  sub: "Live mode, no setup fees" },
+            { label: "Instant QR codes",    sub: "One per barber or chair" },
+            { label: "Live appointments",   sub: "Real-time staff calendar" },
+            { label: "No app required",     sub: "Clients scan & book" },
+            { label: "Stripe payments",     sub: "Collect deposits upfront" },
           ] as const
         ).map((f) => (
           <div key={f.label} style={{ padding: "28px 40px", borderRight: `1px solid ${BORDER}`, textAlign: "center", minWidth: 180 }}>
@@ -292,10 +263,10 @@ export default function LandingPage() {
           </h2>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 40 }}>
             {([
-              { n: "01", head: "Register your restaurant", sub: "Create your account in 2 minutes. Your dashboard is ready immediately — no setup call needed." },
-              { n: "02", head: "Add your tables and menu", sub: "Add one location per table, then build your menu with categories and items. Everything goes live instantly." },
-              { n: "03", head: "Print your QR code",       sub: "Download a unique QR code for each table from your dashboard. Print, laminate, and place it on the table." },
-              { n: "04", head: "Customers scan and order", sub: "Guests scan the code, browse your menu, and place orders — no app, no account, no friction." },
+              { n: "01", head: "Register your shop",       sub: "Create your account in 2 minutes. Your dashboard is ready immediately — no setup call needed." },
+              { n: "02", head: "Add your staff & services", sub: "Add your barbers, set their services and availability. Everything goes live instantly." },
+              { n: "03", head: "Print your QR codes",      sub: "Download a unique QR code for each barber or chair. Print and display it at your shop." },
+              { n: "04", head: "Clients scan and book",    sub: "Clients scan the code, pick a service and time slot, and book — no app, no account, no friction." },
             ]).map((step) => (
               <div key={step.n}>
                 <div style={{
@@ -323,7 +294,7 @@ export default function LandingPage() {
           Be the first in.
         </h2>
         <p style={{ fontSize: 16, color: MUTED, marginBottom: 40, lineHeight: 1.7 }}>
-          Early access pricing for the first 50 restaurants.
+          Early access pricing for the first 50 barbershops.
         </p>
         {submitted ? (
           <div style={{ display: "inline-block", border: `1px solid ${ACCENT}`, borderRadius: 10, padding: "16px 32px", color: ACCENT, fontWeight: 700, fontSize: 15 }}>
@@ -376,13 +347,13 @@ export default function LandingPage() {
                 name:        "Starter",
                 price:       "$49",
                 recommended: false,
-                features:    ["1 location", "QR ordering", "Menu management", "Order dashboard"],
+                features:    ["1 location", "Up to 3 staff", "Appointment booking", "Services catalog"],
               },
               {
                 name:        "Pro",
                 price:       "$99",
                 recommended: true,
-                features:    ["Up to 5 locations", "Booking system", "Staff management", "Priority support"],
+                features:    ["Up to 5 locations", "Unlimited staff", "Staff schedules", "Priority support"],
               },
               {
                 name:        "Enterprise",
@@ -394,29 +365,29 @@ export default function LandingPage() {
               <div
                 key={plan.name}
                 style={{
-                  background:   SURFACE,
-                  border:       plan.recommended ? `2px solid ${ACCENT}55` : `1px solid ${BORDER}`,
-                  borderRadius: 14,
-                  padding:      "32px 28px",
-                  display:      "flex",
-                  flexDirection:"column",
-                  gap:          0,
-                  position:     "relative",
+                  background:    SURFACE,
+                  border:        plan.recommended ? `2px solid ${ACCENT}55` : `1px solid ${BORDER}`,
+                  borderRadius:  14,
+                  padding:       "32px 28px",
+                  display:       "flex",
+                  flexDirection: "column",
+                  gap:           0,
+                  position:      "relative",
                 }}
               >
                 {plan.recommended && (
                   <div style={{
-                    position:     "absolute",
-                    top:          -13,
-                    left:         24,
-                    background:   ACCENT,
-                    color:        BG,
-                    fontSize:     10,
-                    fontWeight:   800,
-                    letterSpacing:2,
-                    padding:      "3px 12px",
-                    borderRadius: 4,
-                    textTransform:"uppercase",
+                    position:      "absolute",
+                    top:           -13,
+                    left:          24,
+                    background:    ACCENT,
+                    color:         BG,
+                    fontSize:      10,
+                    fontWeight:    800,
+                    letterSpacing: 2,
+                    padding:       "3px 12px",
+                    borderRadius:  4,
+                    textTransform: "uppercase",
                   }}>
                     Most Popular
                   </div>
@@ -444,7 +415,7 @@ export default function LandingPage() {
                   ))}
                 </div>
                 <button
-                  onClick={() => navigate("/login")}
+                  onClick={() => navigate("/register")}
                   style={{
                     marginTop:    "auto",
                     background:   plan.recommended ? ACCENT : "none",
@@ -466,75 +437,28 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Become a Promoter */}
-      <section id="promoter" style={{ background: SURFACE, borderTop: `1px solid ${BORDER}`, borderBottom: `1px solid ${BORDER}`, padding: "80px 24px", textAlign: "center" }}>
-        <div style={{ maxWidth: 640, margin: "0 auto" }}>
-          <p style={{ fontSize: 11, letterSpacing: 4, color: ACCENT, fontWeight: 700, textTransform: "uppercase", marginBottom: 20 }}>
-            Promoter Program
-          </p>
-          <h2 style={{ fontSize: "clamp(26px, 4.5vw, 44px)", fontWeight: 900, letterSpacing: -1, color: TEXT, marginBottom: 14, lineHeight: 1.15 }}>
-            Become a QR-Wegn Promoter
-          </h2>
-          <p style={{ fontSize: 16, color: MUTED, marginBottom: 40, lineHeight: 1.7 }}>
-            Earn cash for every restaurant you bring on board
-          </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 16, marginBottom: 44, textAlign: "left", maxWidth: 460, margin: "0 auto 44px" }}>
-            {[
-              "Sell any plan and earn the first month's value — $49, $99, or $199",
-              "No limit on earnings — every sale counts",
-              "Get paid 10 days after the restaurant's first successful payment",
-            ].map((point) => (
-              <div key={point} style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
-                <span style={{
-                  flexShrink: 0, marginTop: 2,
-                  width: 20, height: 20, borderRadius: "50%",
-                  background: ACCENT + "22", border: `1.5px solid ${ACCENT}55`,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 11, color: ACCENT, fontWeight: 900,
-                }}>✓</span>
-                <span style={{ fontSize: 15, color: TEXT, lineHeight: 1.6 }}>{point}</span>
-              </div>
-            ))}
-          </div>
-          <a
-            href="https://tally.so/r/gDJWe4"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              display: "inline-block",
-              background: ACCENT, color: BG,
-              fontWeight: 800, fontSize: 15,
-              padding: "15px 32px", borderRadius: 10,
-              textDecoration: "none", letterSpacing: 0.3,
-            }}
-          >
-            Submit a Sale Claim →
-          </a>
-        </div>
-      </section>
-
       {/* QR Code */}
       <section style={{ background: BG, borderTop: `1px solid ${BORDER}`, padding: "60px 24px", textAlign: "center" }}>
         <p style={{ fontSize: 11, letterSpacing: 4, color: ACCENT, fontWeight: 700, textTransform: "uppercase", marginBottom: 20 }}>
           Scan to try
         </p>
         <p style={{ fontSize: 18, fontWeight: 800, color: TEXT, marginBottom: 28 }}>
-          Scan to try QR-Wegn
+          Scan to try QRBooker
         </p>
         <div style={{ display: "inline-block", padding: 16, border: `1px solid ${BORDER}`, borderRadius: 16, background: "#080808" }}>
           {qrDataUrl
-            ? <img src={qrDataUrl} alt="Scan to try QR-Wegn" width={200} height={200} style={{ display: "block", borderRadius: 8 }} />
+            ? <img src={qrDataUrl} alt="Scan to try QRBooker" width={200} height={200} style={{ display: "block", borderRadius: 8 }} />
             : <div style={{ width: 200, height: 200, background: "#111", borderRadius: 8 }} />
           }
         </div>
         <p style={{ fontSize: 13, color: MUTED, marginTop: 16, fontFamily: "monospace" }}>
-          qrwegn.com
+          qrbooker.com
         </p>
       </section>
 
       {/* Footer */}
       <footer style={{ borderTop: `1px solid ${BORDER}`, padding: "20px 32px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
-        <span style={{ fontSize: 13, color: MUTED }}>© 2026 QR-Wegn</span>
+        <span style={{ fontSize: 13, color: MUTED }}>© 2026 QRBooker</span>
         <div style={{ display: "flex", gap: 24 }}>
           <button onClick={() => navigate("/pricing")} style={{ background: "none", border: "none", color: MUTED, fontSize: 13, cursor: "pointer", padding: 0 }}>Pricing</button>
           <button onClick={() => navigate("/terms")}   style={{ background: "none", border: "none", color: MUTED, fontSize: 13, cursor: "pointer", padding: 0 }}>Terms</button>
