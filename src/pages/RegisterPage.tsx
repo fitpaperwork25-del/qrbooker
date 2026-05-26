@@ -20,12 +20,8 @@ function slugify(str: string): string {
 }
 
 const BUSINESS_TYPES = [
-  { value: "restaurant", label: "Restaurant" },
-  { value: "cafe",       label: "Cafe" },
   { value: "barbershop", label: "Barbershop" },
   { value: "salon",      label: "Salon" },
-  { value: "hotel",      label: "Hotel" },
-  { value: "platform",   label: "Platform" },
 ] as const;
 
 const inputStyle: React.CSSProperties = {
@@ -64,7 +60,7 @@ export default function RegisterPage() {
     businessName: "",
     email: "",
     password: "",
-    type: "restaurant",
+    type: "barbershop",
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -236,7 +232,7 @@ export default function RegisterPage() {
             <input
               type="text"
               required
-              placeholder="e.g. Snelling Cafe"
+              placeholder="e.g. Classic Cuts Barbershop"
               value={form.businessName}
               onChange={set("businessName")}
               style={inputStyle}
