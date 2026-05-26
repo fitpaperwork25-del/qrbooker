@@ -88,6 +88,45 @@ const modalBox: React.CSSProperties = {
   maxHeight: "90vh", overflowY: "auto",
 };
 
+// ── 12-hour time picker ───────────────────────────────────
+// Stores value as 24-hour "HH:MM" (compatible with saveAppt/saveBlock),
+// but shows hour / minute / AM-PM selects so the UI always reads 12-hour.
+function Time12Picker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [hStr, mStr] = value.split(":");
+  const hour24 = parseInt(hStr || "9");
+  const minute  = (mStr || "00").padStart(2, "0");
+  const ampm    = hour24 < 12 ? "AM" : "PM";
+  const hour12  = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24;
+
+  const selStyle: React.CSSProperties = {
+    ...inp, padding: "10px 6px", textAlign: "center", cursor: "pointer",
+  };
+
+  function commit(h12: number, min: string, ap: string) {
+    let h24 = h12;
+    if (ap === "AM" && h12 === 12) h24 = 0;
+    else if (ap === "PM" && h12 !== 12) h24 += 12;
+    onChange(`${String(h24).padStart(2, "0")}:${min}`);
+  }
+
+  const minutes = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, "0"));
+
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 4 }}>
+      <select value={hour12} style={selStyle} onChange={e => commit(parseInt(e.target.value), minute, ampm)}>
+        {[12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map(h => <option key={h} value={h}>{h}</option>)}
+      </select>
+      <select value={minute} style={selStyle} onChange={e => commit(hour12, e.target.value, ampm)}>
+        {minutes.map(m => <option key={m} value={m}>{m}</option>)}
+      </select>
+      <select value={ampm} style={selStyle} onChange={e => commit(hour12, minute, e.target.value)}>
+        <option value="AM">AM</option>
+        <option value="PM">PM</option>
+      </select>
+    </div>
+  );
+}
+
 // ── Component ─────────────────────────────────────────────
 export function AppointmentCalendar({
   business, locations, menuItems,
@@ -338,7 +377,7 @@ export function AppointmentCalendar({
                       onClick={() => {
                         const h = Math.floor(slot.absMin / 60);
                         const min = slot.absMin % 60;
-                        openAddAppt(dateStr, `${h}:${String(min).padStart(2, "0")}`, locations[0]?.id || "");
+                        openAddAppt(dateStr, `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`, locations[0]?.id || "");
                       }}
                       style={{
                         position: "absolute", top: i * SLOT_H, left: 0, right: 0, height: SLOT_H,
@@ -535,8 +574,7 @@ export function AppointmentCalendar({
                 </div>
                 <div>
                   <label style={lbl}>Start time *</label>
-                  <input required type="time" value={apptForm.start_time}
-                    onChange={e => setApptForm(f => ({ ...f, start_time: e.target.value }))} style={{ ...inp, colorScheme: "dark" }} />
+                  <Time12Picker value={apptForm.start_time} onChange={v => setApptForm(f => ({ ...f, start_time: v }))} />
                 </div>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
@@ -602,13 +640,11 @@ export function AppointmentCalendar({
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div>
                   <label style={lbl}>Start time *</label>
-                  <input required type="time" value={blockForm.start_time}
-                    onChange={e => setBlockForm(f => ({ ...f, start_time: e.target.value }))} style={{ ...inp, colorScheme: "dark" }} />
+                  <Time12Picker value={blockForm.start_time} onChange={v => setBlockForm(f => ({ ...f, start_time: v }))} />
                 </div>
                 <div>
                   <label style={lbl}>End time *</label>
-                  <input required type="time" value={blockForm.end_time}
-                    onChange={e => setBlockForm(f => ({ ...f, end_time: e.target.value }))} style={{ ...inp, colorScheme: "dark" }} />
+                  <Time12Picker value={blockForm.end_time} onChange={v => setBlockForm(f => ({ ...f, end_time: v }))} />
                 </div>
               </div>
               <div>
