@@ -181,7 +181,16 @@ export default function RegisterPage() {
     }
 
     // No immediate session — email confirmation required.
-    // Wait for SIGNED_IN before inserting the business row.
+    // Store the business info so DashboardPage can create it after the user
+    // confirms their email and lands on /dashboard (the onAuthStateChange
+    // listener below only catches the SIGNED_IN in the *same* page load;
+    // if the user opens the confirmation link in a new tab or navigates away
+    // the listener is gone but the localStorage key survives).
+    localStorage.setItem("qw_pending_registration", JSON.stringify({
+      businessName: form.businessName.trim(),
+      type:         form.type,
+    }));
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (event === "SIGNED_IN" && session?.user.id) {

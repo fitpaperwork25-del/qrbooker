@@ -30,7 +30,7 @@ const ORDER_STATUS_COLOR: Record<string, string> = {
 const ORDER_STATUSES = ["new", "preparing", "ready", "done"] as const;
 const CANCEL_REASONS = ["Wrong order", "Customer refused", "Item unavailable", "Other"] as const;
 
-type Tab = "tables" | "menu" | "orders" | "financials" | "branding";
+type Tab = "appointments" | "services" | "chairs" | "financials" | "branding";
 const EMPTY_ITEM = { name: "", price: "", description: "", category_id: "" };
 
 const card: React.CSSProperties = {
@@ -45,7 +45,7 @@ const badge = (color: string): React.CSSProperties => ({
 
 const PLAN_ORDER = ["trialing", "starter", "pro", "enterprise"];
 const PLAN_LABELS: Record<string, { label: string; price: string; features: string[]; recommended?: boolean }> = {
-  starter:    { label: "Starter",    price: "$49/mo",  features: ["1 location", "QR ordering", "Menu management", "Order dashboard"] },
+  starter:    { label: "Starter",    price: "$49/mo",  features: ["1 location", "QR booking", "Service management", "Appointment dashboard"] },
   pro:        { label: "Pro",        price: "$99/mo",  features: ["Up to 5 locations", "Booking system", "Staff management", "Priority support"], recommended: true },
   enterprise: { label: "Enterprise", price: "$199/mo", features: ["Unlimited locations", "White label", "Custom domain", "Dedicated support"] },
 };
@@ -69,7 +69,7 @@ export default function DashboardPage() {
   const [orders, setOrders]         = useState<Order[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [menuItems, setMenuItems]   = useState<MenuItem[]>([]);
-  const [tab, setTab]               = useState<Tab>("tables");
+  const [tab, setTab]               = useState<Tab>("appointments");
   const [loading, setLoading]       = useState(true);
   const [isMobile, setIsMobile]     = useState(() => window.innerWidth < 640);
 
@@ -487,7 +487,7 @@ export default function DashboardPage() {
     ctx.font = "500 28px Arial, sans-serif";
     ctx.fillStyle = "#C8C4BC";
     ctx.textAlign = "center";
-    ctx.fillText("SCAN · ORDER · ENJOY", W / 2, 194);
+    ctx.fillText("SCAN · BOOK · SHOW UP", W / 2, 194);
 
     // Gold underline
     const lineHalf = 260;
@@ -527,7 +527,7 @@ export default function DashboardPage() {
 
     ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
 
-    // ── Table name ───────────────────────────────────────
+    // ── Chair name ───────────────────────────────────────
     ctx.font = "900 56px 'Arial Black', Arial, sans-serif";
     ctx.fillStyle = "#E8C547";
     ctx.textAlign = "center";
@@ -536,7 +536,7 @@ export default function DashboardPage() {
     // Scan instruction
     ctx.font = "400 30px Arial, sans-serif";
     ctx.fillStyle = "#C8C4BC";
-    ctx.fillText("Point your camera at the code to order", W / 2, 1092);
+    ctx.fillText("Point your camera at the code to book", W / 2, 1092);
 
     // URL (small, muted)
     ctx.font = "400 20px monospace";
@@ -702,9 +702,9 @@ export default function DashboardPage() {
 
   const checklist = [
     { label: "Create account",          done: true },
-    { label: "Add a table or location", done: locations.length > 0 },
-    { label: "Add menu items",          done: menuItems.length > 0 },
-    { label: "Receive first order",     done: orders.length > 0 },
+    { label: "Add a chair or staff member", done: locations.length > 0 },
+    { label: "Add services",          done: menuItems.length > 0 },
+    { label: "Receive first appointment",     done: orders.length > 0 },
   ];
   const checklistDone = checklist.filter((c) => c.done).length;
   const allDone = checklistDone === checklist.length;
@@ -777,36 +777,36 @@ export default function DashboardPage() {
         {/* Tabs */}
         <div>
           <div style={{ display: "flex", gap: 0, borderBottom: `1px solid ${BORDER}`, marginBottom: 24, overflowX: "auto", scrollbarWidth: "none", WebkitOverflowScrolling: "touch" } as React.CSSProperties}>
-            {(["tables", "menu", "orders", "financials", "branding"] as Tab[]).map((t) => (
+            {(["appointments", "services", "chairs", "financials", "branding"] as Tab[]).map((t) => (
               <button key={t} onClick={() => setTab(t)}
                 style={{ background: "none", border: "none", borderBottom: tab === t ? `2px solid ${ACCENT}` : "2px solid transparent", color: tab === t ? ACCENT : MUTED, padding: isMobile ? "10px 14px" : "12px 24px", fontWeight: 700, fontSize: isMobile ? 13 : 14, cursor: "pointer", textTransform: "capitalize", letterSpacing: 0.5, transition: "color 0.15s", whiteSpace: "nowrap", flexShrink: 0 }}>
                 {t}
-                {t === "tables" && locations.length > 0 && <span style={{ marginLeft: 8, background: BORDER, borderRadius: 12, padding: "2px 8px", fontSize: 11, color: MUTED }}>{locations.length}</span>}
-                {t === "menu" && menuItems.length > 0 && <span style={{ marginLeft: 8, background: BORDER, borderRadius: 12, padding: "2px 8px", fontSize: 11, color: MUTED }}>{menuItems.length}</span>}
-                {t === "orders" && orders.length > 0 && <span style={{ marginLeft: 8, background: BORDER, borderRadius: 12, padding: "2px 8px", fontSize: 11, color: MUTED }}>{orders.length}</span>}
+                {t === "chairs" && locations.length > 0 && <span style={{ marginLeft: 8, background: BORDER, borderRadius: 12, padding: "2px 8px", fontSize: 11, color: MUTED }}>{locations.length}</span>}
+                {t === "services" && menuItems.length > 0 && <span style={{ marginLeft: 8, background: BORDER, borderRadius: 12, padding: "2px 8px", fontSize: 11, color: MUTED }}>{menuItems.length}</span>}
+                {t === "appointments" && orders.length > 0 && <span style={{ marginLeft: 8, background: BORDER, borderRadius: 12, padding: "2px 8px", fontSize: 11, color: MUTED }}>{orders.length}</span>}
               </button>
             ))}
           </div>
 
           {/* Tables tab */}
-          {tab === "tables" && (
+          {tab === "chairs" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
               {addingTable ? (
                 <form onSubmit={addTable} style={{ ...card, display: "flex", flexDirection: "column", gap: 14 }}>
-                  <p style={{ fontSize: 13, fontWeight: 700, color: TEXT, margin: 0 }}>New table</p>
-                  <input autoFocus required placeholder="e.g. Table 4" value={newTableName} onChange={(e) => setNewTableName(e.target.value)}
+                  <p style={{ fontSize: 13, fontWeight: 700, color: TEXT, margin: 0 }}>New chair / staff member</p>
+                  <input autoFocus required placeholder="e.g. Chair 1 or Teclai" value={newTableName} onChange={(e) => setNewTableName(e.target.value)}
                     style={{ background: BG, border: `1px solid ${BORDER}`, borderRadius: 8, padding: "11px 14px", color: TEXT, fontSize: 14, outline: "none" }} />
                   {tableError && <p style={{ color: RED, fontSize: 12, margin: 0 }}>{tableError}</p>}
                   <div style={{ display: "flex", gap: 10 }}>
-                    <button type="submit" disabled={tableSaving} style={{ background: ACCENT, color: BG, border: "none", borderRadius: 8, padding: "10px 20px", fontWeight: 800, fontSize: 13, cursor: tableSaving ? "not-allowed" : "pointer" }}>{tableSaving ? "Saving…" : "Add table"}</button>
+                    <button type="submit" disabled={tableSaving} style={{ background: ACCENT, color: BG, border: "none", borderRadius: 8, padding: "10px 20px", fontWeight: 800, fontSize: 13, cursor: tableSaving ? "not-allowed" : "pointer" }}>{tableSaving ? "Saving…" : "Add chair"}</button>
                     <button type="button" onClick={() => { setAddingTable(false); setNewTableName(""); setTableError(""); }} style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "10px 20px", color: MUTED, fontSize: 13, cursor: "pointer" }}>Cancel</button>
                   </div>
                 </form>
               ) : (
-                <div><button onClick={() => setAddingTable(true)} style={{ background: ACCENT, color: BG, border: "none", borderRadius: 8, padding: "11px 22px", fontWeight: 800, fontSize: 14, cursor: "pointer" }}>+ Add table</button></div>
+                <div><button onClick={() => setAddingTable(true)} style={{ background: ACCENT, color: BG, border: "none", borderRadius: 8, padding: "11px 22px", fontWeight: 800, fontSize: 14, cursor: "pointer" }}>+ Add chair</button></div>
               )}
               {locations.length === 0 ? (
-                <Empty message="No tables yet." sub="Add your first table to generate a QR code." />
+                <Empty message="No chairs yet." sub="Add your first chair or staff member to generate a QR booking code." />
               ) : (
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 16 }}>
                   {locations.map((loc) => (
@@ -863,13 +863,13 @@ export default function DashboardPage() {
           )}
 
           {/* Menu tab */}
-          {tab === "menu" && (
+          {tab === "services" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
 
               {/* Toolbar */}
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
                 <button onClick={() => { setAddingCat(true); setAddingItem(false); }} style={{ background: "none", border: `1px solid ${ACCENT}`, borderRadius: 8, padding: "10px 20px", color: ACCENT, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>+ Add category</button>
-                {categories.length > 0 && <button onClick={() => { setAddingItem(true); setAddingCat(false); setItemForm({ ...EMPTY_ITEM, category_id: categories[0].id }); }} style={{ background: ACCENT, border: "none", borderRadius: 8, padding: "10px 20px", color: BG, fontWeight: 800, fontSize: 13, cursor: "pointer" }}>+ Add item</button>}
+                {categories.length > 0 && <button onClick={() => { setAddingItem(true); setAddingCat(false); setItemForm({ ...EMPTY_ITEM, category_id: categories[0].id }); }} style={{ background: ACCENT, border: "none", borderRadius: 8, padding: "10px 20px", color: BG, fontWeight: 800, fontSize: 13, cursor: "pointer" }}>+ Add service</button>}
                 {/* CSV Import */}
                 <input ref={csvInputRef} type="file" accept=".csv" style={{ display: "none" }} onChange={handleCsvFile} />
                 <button onClick={() => csvInputRef.current?.click()} style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "10px 20px", color: MUTED, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>↑ Import CSV</button>
@@ -929,7 +929,7 @@ export default function DashboardPage() {
 
               {addingItem && (
                 <form onSubmit={addMenuItem} style={{ ...card, display: "flex", flexDirection: "column", gap: 14 }}>
-                  <p style={{ fontSize: 13, fontWeight: 700, color: TEXT, margin: 0 }}>New menu item</p>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: TEXT, margin: 0 }}>New service</p>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                       <label style={{ fontSize: 11, color: MUTED, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase" }}>Name *</label>
@@ -977,7 +977,7 @@ export default function DashboardPage() {
               )}
 
               {categories.length === 0 ? (
-                <Empty message="No categories yet." sub="Create a category first, or import from CSV." />
+                <Empty message="No service categories yet." sub="Create a service category first, or import from CSV." />
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
                   {categories.map((cat) => {
@@ -991,14 +991,14 @@ export default function DashboardPage() {
                             style={{ marginLeft: "auto", background: "none", border: `1px solid ${BORDER}`, borderRadius: 6, padding: "3px 10px", color: MUTED, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Delete</button>
                         </div>
                         {items.length === 0 ? (
-                          <p style={{ color: MUTED, fontSize: 13, paddingLeft: 4 }}>No items yet.</p>
+                          <p style={{ color: MUTED, fontSize: 13, paddingLeft: 4 }}>No services yet.</p>
                         ) : (
                           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                             {items.map((item) =>
                               editingItemId === item.id ? (
                                 <form key={item.id} onSubmit={updateMenuItem} style={{ ...card, padding: "16px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
                                   <div style={{ display: "grid", gridTemplateColumns: "1fr 120px", gap: 10 }}>
-                                    <input required autoFocus placeholder="Item name" value={editItemForm.name} onChange={(e) => setEditItemForm((f) => ({ ...f, name: e.target.value }))}
+                                    <input required autoFocus placeholder="Service name" value={editItemForm.name} onChange={(e) => setEditItemForm((f) => ({ ...f, name: e.target.value }))}
                                       style={{ background: BG, border: `1px solid ${BORDER}`, borderRadius: 8, padding: "9px 12px", color: TEXT, fontSize: 14, outline: "none" }} />
                                     <input required type="number" min="0" step="0.01" placeholder="Price" value={editItemForm.price} onChange={(e) => setEditItemForm((f) => ({ ...f, price: e.target.value }))}
                                       style={{ background: BG, border: `1px solid ${BORDER}`, borderRadius: 8, padding: "9px 12px", color: TEXT, fontSize: 14, outline: "none" }} />
@@ -1053,11 +1053,11 @@ export default function DashboardPage() {
           )}
 
           {/* Orders tab */}
-          {tab === "orders" && (
+          {tab === "appointments" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
               {openTabs.length > 0 && (
                 <div>
-                  <p style={{ fontSize: 11, letterSpacing: 3, color: ACCENT, fontWeight: 700, textTransform: "uppercase", margin: "0 0 12px" }}>Open Tabs — {openTabs.length}</p>
+                  <p style={{ fontSize: 11, letterSpacing: 3, color: ACCENT, fontWeight: 700, textTransform: "uppercase", margin: "0 0 12px" }}>Open appointments — {openTabs.length}</p>
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                     {openTabs.map((tab) => (
                       <div key={tab.id} style={{ ...card, padding: "14px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", borderColor: ACCENT + "44", flexWrap: "wrap", gap: 10 }}>
@@ -1076,7 +1076,7 @@ export default function DashboardPage() {
               )}
               <div>
                 {orders.length === 0 ? (
-                  <Empty message="No orders yet." sub="Orders will appear here in real time once customers start scanning." />
+                  <Empty message="No appointments yet." sub="Appointments will appear here once clients book." />
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                     {orders.map((order) => {
@@ -1431,7 +1431,7 @@ export default function DashboardPage() {
                       </div>
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                         <div style={{ background: RED + "11", border: `1px solid ${RED}33`, borderRadius: 10, padding: "16px 18px" }}>
-                          <div style={{ fontSize: 11, color: RED, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>Cancelled orders</div>
+                          <div style={{ fontSize: 11, color: RED, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>Cancelled appointments</div>
                           <div style={{ fontSize: 28, fontWeight: 900, color: RED }}>{filtered.length}</div>
                         </div>
                         <div style={{ background: RED + "11", border: `1px solid ${RED}33`, borderRadius: 10, padding: "16px 18px" }}>
@@ -1482,7 +1482,7 @@ export default function DashboardPage() {
                     <div style={{ width: 80, height: 80, borderRadius: 10, background: BG, border: `2px dashed ${BORDER}`, display: "flex", alignItems: "center", justifyContent: "center", color: MUTED, fontSize: 12 }}>No logo</div>
                   )}
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    <p style={{ color: MUTED, fontSize: 13, margin: 0 }}>Appears next to your business name in the customer menu header.</p>
+                    <p style={{ color: MUTED, fontSize: 13, margin: 0 }}>Appears next to your business name in the customer booking header.</p>
                     <input ref={logoInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleLogoUpload} />
                     <button onClick={() => logoInputRef.current?.click()} disabled={brandingLogoUploading}
                       style={{ background: ACCENT, color: BG, border: "none", borderRadius: 8, padding: "10px 20px", fontWeight: 800, fontSize: 13, cursor: brandingLogoUploading ? "not-allowed" : "pointer", alignSelf: "flex-start" }}>
@@ -1502,7 +1502,7 @@ export default function DashboardPage() {
                     <div style={{ width: "100%", height: 120, borderRadius: 10, background: BG, border: `2px dashed ${BORDER}`, display: "flex", alignItems: "center", justifyContent: "center", color: MUTED, fontSize: 12 }}>No hero image</div>
                   )}
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    <p style={{ color: MUTED, fontSize: 13, margin: 0 }}>Displayed as a full-width banner at the top of your customer menu page.</p>
+                    <p style={{ color: MUTED, fontSize: 13, margin: 0 }}>Displayed as a full-width banner at the top of your customer booking page.</p>
                     <input ref={heroInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleHeroUpload} />
                     <button onClick={() => heroInputRef.current?.click()} disabled={brandingHeroUploading}
                       style={{ background: ACCENT, color: BG, border: "none", borderRadius: 8, padding: "10px 20px", fontWeight: 800, fontSize: 13, cursor: brandingHeroUploading ? "not-allowed" : "pointer", alignSelf: "flex-start" }}>
