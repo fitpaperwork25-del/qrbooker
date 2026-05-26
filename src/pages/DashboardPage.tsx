@@ -3,6 +3,7 @@ import QRCode from "qrcode";
 import { useAuth } from "../lib/useAuth";
 import { supabase } from "../lib/supabase";
 import { ACCENT, BG, BORDER, MUTED, SURFACE, TEXT, GREEN, RED } from "../constants/theme";
+import { AppointmentCalendar } from "../components/AppointmentCalendar";
 
 type Business = {
   id: string; name: string; type: string; plan: string;
@@ -1052,106 +1053,13 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* Orders tab */}
+          {/* Appointments tab */}
           {tab === "appointments" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-              {openTabs.length > 0 && (
-                <div>
-                  <p style={{ fontSize: 11, letterSpacing: 3, color: ACCENT, fontWeight: 700, textTransform: "uppercase", margin: "0 0 12px" }}>Open appointments — {openTabs.length}</p>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    {openTabs.map((tab) => (
-                      <div key={tab.id} style={{ ...card, padding: "14px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", borderColor: ACCENT + "44", flexWrap: "wrap", gap: 10 }}>
-                        <div>
-                          <div style={{ fontWeight: 700, fontSize: 15 }}>{tab.table_name}</div>
-                          <div style={{ color: MUTED, fontSize: 12, marginTop: 2 }}>Opened {new Date(tab.opened_at).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}</div>
-                        </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                          <span style={{ fontWeight: 900, fontSize: 18, color: ACCENT }}>${Number(tab.total).toFixed(2)}</span>
-                          <button onClick={() => closeTab(tab.id)} style={{ background: "none", border: `1px solid ${ACCENT}66`, borderRadius: 8, padding: "6px 14px", color: ACCENT, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Close Tab</button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              <div>
-                {orders.length === 0 ? (
-                  <Empty message="No appointments yet." sub="Appointments will appear here once clients book." />
-                ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                    {orders.map((order) => {
-                      const isExpanded = expandedOrders.has(order.id);
-                      const statusColor = ORDER_STATUS_COLOR[order.status] ?? MUTED;
-                      const items = orderItemsCache[order.id];
-                      return (
-                        <div key={order.id} style={{ ...card, padding: "0" }}>
-                          <div onClick={() => toggleOrder(order.id)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", cursor: "pointer", gap: 12 }}>
-                            <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
-                              <span style={badge(statusColor)}>{order.status}</span>
-                              <span style={{ color: MUTED, fontSize: 12, fontFamily: "monospace" }}>{new Date(order.created_at).toLocaleString()}</span>
-                            </div>
-                            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                              <span style={{ fontWeight: 800, fontSize: 15 }}>${Number(order.total).toFixed(2)}</span>
-                              <span style={{ color: MUTED, fontSize: 12 }}>{isExpanded ? "▲" : "▼"}</span>
-                            </div>
-                          </div>
-                          {isExpanded && (
-                            <div style={{ borderTop: `1px solid ${BORDER}`, padding: "16px 20px", display: "flex", flexDirection: "column", gap: 16 }}>
-                              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                                {!items ? <p style={{ color: MUTED, fontSize: 13, margin: 0 }}>Loading items…</p>
-                                  : items.length === 0 ? <p style={{ color: MUTED, fontSize: 13, margin: 0 }}>No items found.</p>
-                                  : items.map((oi) => (
-                                    <div key={oi.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 14 }}>
-                                      <span style={{ color: TEXT }}><span style={{ color: MUTED, fontFamily: "monospace", marginRight: 10 }}>{oi.quantity}×</span>{oi.name}</span>
-                                      <span style={{ color: MUTED }}>${(oi.unit_price * oi.quantity).toFixed(2)}</span>
-                                    </div>
-                                  ))}
-                              </div>
-                              {order.status === "cancelled" && <div style={{ fontSize: 12, color: RED, fontStyle: "italic" }}>Cancelled{order.cancel_reason ? `: ${order.cancel_reason}` : ""}</div>}
-                              {order.status !== "cancelled" && (
-                                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                                    {ORDER_STATUSES.map((s) => {
-                                      const active = order.status === s;
-                                      const color = ORDER_STATUS_COLOR[s];
-                                      return <button key={s} onClick={() => updateOrderStatus(order.id, s)}
-                                        style={{ background: active ? color + "33" : "none", border: `1px solid ${active ? color : BORDER}`, borderRadius: 8, padding: "7px 16px", color: active ? color : MUTED, fontWeight: active ? 800 : 600, fontSize: 12, cursor: "pointer", textTransform: "uppercase", letterSpacing: 0.5 }}>{s}</button>;
-                                    })}
-                                  </div>
-                                  {order.status !== "done" && (
-                                    cancellingOrderId === order.id ? (
-                                      <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingTop: 8, borderTop: `1px solid ${BORDER}` }}>
-                                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-                                          <select value={cancelReason} onChange={(e) => { setCancelReason(e.target.value); setCancelError(""); }}
-                                            style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 8, padding: "7px 12px", color: cancelReason ? TEXT : MUTED, fontSize: 12, cursor: "pointer" }}>
-                                            <option value="">Select reason…</option>
-                                            {CANCEL_REASONS.map((r) => <option key={r}>{r}</option>)}
-                                          </select>
-                                          <button onClick={() => cancelOrder(order.id, cancelReason)} disabled={!cancelReason}
-                                            style={{ background: cancelReason ? RED + "22" : "none", border: `1px solid ${cancelReason ? RED : BORDER}`, borderRadius: 8, padding: "7px 16px", color: cancelReason ? RED : MUTED, fontWeight: 700, fontSize: 12, cursor: cancelReason ? "pointer" : "not-allowed", letterSpacing: 0.5, textTransform: "uppercase" }}>Confirm Cancel</button>
-                                          <button onClick={() => { setCancellingOrderId(null); setCancelReason(""); setCancelError(""); }}
-                                            style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "7px 14px", color: MUTED, fontSize: 12, cursor: "pointer" }}>Keep</button>
-                                        </div>
-                                        {cancelError && <p style={{ margin: 0, fontSize: 11, color: RED }}>{cancelError}</p>}
-                                      </div>
-                                    ) : (
-                                      <div style={{ paddingTop: 8, borderTop: `1px solid ${BORDER}` }}>
-                                        <button onClick={() => { setCancellingOrderId(order.id); setCancelReason(""); }}
-                                          style={{ background: "none", border: `1px solid ${RED}55`, borderRadius: 8, padding: "7px 16px", color: RED, fontWeight: 700, fontSize: 12, cursor: "pointer", letterSpacing: 0.5, textTransform: "uppercase" }}>Cancel Order</button>
-                                      </div>
-                                    )
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
+            <AppointmentCalendar
+              business={business}
+              locations={locations}
+              menuItems={menuItems}
+            />
           )}
 
           {/* Financials tab */}
