@@ -1,8 +1,8 @@
 import QRCode from "qrcode";
 import { IDocument, IsExtensionInstalled } from "./bpac.js";
 
-const APP_URL = "https://www.qrwegn.com";
-const TEMPLATE_PATH = "C:\\qrwegn-print-server\\qrwegn-template.lbx";
+const APP_URL = "https://qrbooker.app";
+const TEMPLATE_PATH = "C:\\qrbooker-print-server\\qrbooker-template.lbx";
 
 function getBusinessName(table, businessSlug) {
   return (
@@ -75,7 +75,7 @@ export async function printBrotherLabels({ businessSlug, tables }) {
   }
 
   try {
-    await IDocument.StartPrint("QR-Wegn Labels", 0);
+    await IDocument.StartPrint("QRBooker Labels", 0);
 
     for (let i = 0; i < tables.length; i++) {
       const table = tables[i];

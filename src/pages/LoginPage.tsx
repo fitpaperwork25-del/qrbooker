@@ -24,30 +24,53 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { signIn } = useAuth();
-  const state = location.state as { from?: string; demoEmail?: string; demoPassword?: string } | null;
-  const from  = state?.from ?? "/dashboard";
 
-  const [email,    setEmail]    = useState(state?.demoEmail    ?? "");
+  const state = location.state as {
+    from?: string;
+    demoEmail?: string;
+    demoPassword?: string;
+  } | null;
+
+  const from = state?.from ?? "/dashboard";
+
+  const [email, setEmail] = useState(state?.demoEmail ?? "");
   const [password, setPassword] = useState(state?.demoPassword ?? "");
-  const [loading,  setLoading]  = useState(false);
-  const [error,    setError]    = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const [focusedField, setFocusedField] = useState<string | null>(null);
 
   const handleSubmit = async () => {
-    if (!email.trim()) { setError("Enter your email."); return; }
-    if (!password) { setError("Enter your password."); return; }
+    if (!email.trim()) {
+      setError("Enter your email.");
+      return;
+    }
+
+    if (!password) {
+      setError("Enter your password.");
+      return;
+    }
+
     setLoading(true);
     setError("");
+
     const err = await signIn(email.trim(), password);
+
     if (err) {
-      setError(err.message === "Invalid login credentials"
-        ? "Incorrect email or password."
-        : err.message);
+      setError(
+        err.message === "Invalid login credentials"
+          ? "Incorrect email or password."
+          : err.message
+      );
       setLoading(false);
-    } else {
-      const dest = email.trim().toLowerCase() === "fitpaperwork25@gmail.com" ? "/admin" : from;
-      navigate(dest, { replace: true });
+      return;
     }
+
+    const dest =
+      email.trim().toLowerCase() === "fitpaperwork25@gmail.com"
+        ? "/admin"
+        : from;
+
+    navigate(dest, { replace: true });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -56,12 +79,16 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!state?.demoEmail || !state?.demoPassword) return;
+
     setLoading(true);
+
     signIn(state.demoEmail, state.demoPassword).then((err) => {
       if (err) {
-        setError(err.message === "Invalid login credentials"
-          ? "Incorrect email or password."
-          : err.message);
+        setError(
+          err.message === "Invalid login credentials"
+            ? "Incorrect email or password."
+            : err.message
+        );
         setLoading(false);
       } else {
         navigate(from, { replace: true });
@@ -80,7 +107,6 @@ export default function LoginPage() {
         flexDirection: "column",
       }}
     >
-      {/* Nav */}
       <div
         style={{
           display: "flex",
@@ -91,12 +117,20 @@ export default function LoginPage() {
         }}
       >
         <div
-          style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            cursor: "pointer",
+          }}
           onClick={() => navigate("/")}
         >
-          <img src="/logo.png" alt="QR-Wegn" style={{ height: 32, width: "auto" }} />
-          <span style={{ fontWeight: 800, fontSize: 17, letterSpacing: 1 }}>QR-Wegn</span>
+          <img src="/logo.png" alt="QRBooker" style={{ height: 32, width: "auto" }} />
+          <span style={{ fontWeight: 800, fontSize: 17, letterSpacing: 1 }}>
+            QRBooker
+          </span>
         </div>
+
         <button
           onClick={() => navigate("/staff-login")}
           style={{
@@ -114,7 +148,6 @@ export default function LoginPage() {
         </button>
       </div>
 
-      {/* Form */}
       <div
         style={{
           flex: 1,
@@ -138,6 +171,7 @@ export default function LoginPage() {
             >
               Owner Login
             </div>
+
             <h1
               style={{
                 fontSize: 38,
@@ -181,6 +215,7 @@ export default function LoginPage() {
               }}
               autoComplete="email"
             />
+
             <input
               type="password"
               placeholder="Password"
@@ -237,6 +272,7 @@ export default function LoginPage() {
             >
               No account? Register →
             </button>
+
             <button
               onClick={() => navigate("/forgot-password")}
               style={{
