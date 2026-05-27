@@ -16,14 +16,17 @@ type OpenTab   = { id: string; table_name: string; total: number; opened_at: str
 type OrderItem = { id: string; name: string; quantity: number; unit_price: number };
 type Category  = { id: string; name: string; display_order: number };
 type MenuItem  = { id: string; category_id: string; name: string; price: number; description: string | null; is_available: boolean; image_url: string | null };
-type Expense       = { id: string; amount: number; category: string; description: string | null; expense_date: string };
+type Expense          = { id: string; amount: number; category: string; description: string | null; expense_date: string };
+type BalanceSheetItem = { id: string; type: string; label: string; amount: number; as_of_date: string };
 type ManualRevenue = { id: string; amount: number; category: string; description: string | null; revenue_date: string };
 type CsvRow    = { category: string; name: string; price: string; description: string; error?: string };
 
 const TODAY = new Date().toISOString().slice(0, 10);
-const EMPTY_EXPENSE = { category: "", amount: "", description: "", expense_date: TODAY };
+const EMPTY_EXPENSE = { category: "Rent", amount: "", description: "", expense_date: TODAY };
 const EMPTY_REVENUE = { category: "Dine-in", amount: "", description: "", date: TODAY };
-const REVENUE_CATEGORIES = ["Dine-in", "Takeout", "Catering", "Other"] as const;
+const REVENUE_CATEGORIES  = ["Dine-in", "Takeout", "Catering", "Other"] as const;
+const EXPENSE_CATEGORIES  = ["Rent", "Supplies", "Utilities", "Payroll", "Misc"] as const;
+const EMPTY_BS_ITEM = { type: "asset" as string, label: "", amount: "", as_of_date: TODAY };
 
 const ORDER_STATUS_COLOR: Record<string, string> = {
   new: "#E8C547", preparing: "#F97316", ready: "#4CAF50", done: "#888888", cancelled: "#f44336",
@@ -133,6 +136,14 @@ export default function DashboardPage() {
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
   const [editExpenseForm, setEditExpenseForm]   = useState(EMPTY_EXPENSE);
 
+  const [balanceSheet, setBalanceSheet] = useState<BalanceSheetItem[]>([]);
+  const [addingBSItem, setAddingBSItem] = useState(false);
+  const [bsForm, setBsForm]             = useState(EMPTY_BS_ITEM);
+  const [bsError, setBsError]           = useState("");
+  const [bsSaving, setBsSaving]         = useState(false);
+  const [editingBSId, setEditingBSId]   = useState<string | null>(null);
+  const [editBSForm, setEditBSForm]     = useState(EMPTY_BS_ITEM);
+
   // ── CSV Import ───────────────────────────────────────────
   const csvInputRef                           = useRef<HTMLInputElement>(null);
   const [csvRows, setCsvRows]                 = useState<CsvRow[]>([]);
@@ -197,16 +208,18 @@ export default function DashboardPage() {
     if (!business?.id) return;
     const fetchFinancials = async () => {
       const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-      const [doneRes, expRes, revRes, cancelRes] = await Promise.all([
+      const [doneRes, expRes, revRes, cancelRes, bsRes] = await Promise.all([
         supabase.from("orders").select("id, status, total, created_at, cancel_reason").eq("business_id", business.id).neq("status", "cancelled").gte("created_at", thirtyDaysAgo).order("created_at", { ascending: false }),
         supabase.from("business_expenses").select("id, amount, category, description, expense_date").eq("business_id", business.id).order("expense_date", { ascending: false }),
         supabase.from("manual_revenue").select("id, amount, category, description, revenue_date").eq("business_id", business.id).order("date", { ascending: false }),
         supabase.from("orders").select("id, status, total, created_at, cancel_reason").eq("business_id", business.id).eq("status", "cancelled").gte("created_at", thirtyDaysAgo).order("created_at", { ascending: false }),
+        supabase.from("balance_sheet_items").select("id, type, label, amount, as_of_date").eq("business_id", business.id).order("as_of_date", { ascending: false }),
       ]);
       setDoneOrders((doneRes.data as Order[]) ?? []);
       setExpenses((expRes.data as Expense[]) ?? []);
       if (revRes.error?.code === "42P01") { setNoRevenueTable(true); } else { setManualRevenue((revRes.data as ManualRevenue[]) ?? []); }
       setCancelledOrders((cancelRes.data as Order[]) ?? []);
+      setBalanceSheet((bsRes.data as BalanceSheetItem[]) ?? []);
     };
     const timer = setInterval(fetchFinancials, 15000);
     return () => clearInterval(timer);
@@ -256,16 +269,18 @@ export default function DashboardPage() {
         setMenuItems((itemRes.data as MenuItem[]) ?? []);
       }
       const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-      const [doneRes, expRes, revRes, cancelRes] = await Promise.all([
+      const [doneRes, expRes, revRes, cancelRes, bsRes] = await Promise.all([
         supabase.from("orders").select("id, status, total, created_at, cancel_reason").eq("business_id", biz.id).neq("status", "cancelled").gte("created_at", thirtyDaysAgo).order("created_at", { ascending: false }),
         supabase.from("business_expenses").select("id, amount, category, description, expense_date").eq("business_id", biz.id).order("expense_date", { ascending: false }),
         supabase.from("manual_revenue").select("id, amount, category, description, revenue_date").eq("business_id", biz.id).order("date", { ascending: false }),
         supabase.from("orders").select("id, status, total, created_at, cancel_reason").eq("business_id", biz.id).eq("status", "cancelled").gte("created_at", thirtyDaysAgo).order("created_at", { ascending: false }),
+        supabase.from("balance_sheet_items").select("id, type, label, amount, as_of_date").eq("business_id", biz.id).order("as_of_date", { ascending: false }),
       ]);
       setDoneOrders((doneRes.data as Order[]) ?? []);
       setExpenses((expRes.data as Expense[]) ?? []);
       if (revRes.error?.code === "42P01") { setNoRevenueTable(true); } else { setManualRevenue((revRes.data as ManualRevenue[]) ?? []); }
       setCancelledOrders((cancelRes.data as Order[]) ?? []);
+      setBalanceSheet((bsRes.data as BalanceSheetItem[]) ?? []);
     }
     setLoading(false);
   }
@@ -439,6 +454,95 @@ export default function DashboardPage() {
     if (!window.confirm("Delete this expense?")) return;
     const { error } = await supabase.from("business_expenses").delete().eq("id", id);
     if (!error) setExpenses((prev) => prev.filter((e) => e.id !== id));
+  }
+
+  function downloadCsv(filename: string, rows: string[][]) {
+    const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  function exportPnL() {
+    const orderRev = doneOrders.reduce((s, o) => s + Number(o.total), 0);
+    const manRev   = manualRevenue.reduce((s, r) => s + Number(r.amount), 0);
+    const totRev   = orderRev + manRev;
+    const totExp   = expenses.reduce((s, e) => s + Number(e.amount), 0);
+    const net      = totRev - totExp;
+    const rows: string[][] = [
+      ["Type", "Category", "Description", "Amount"],
+      ["Revenue", "Appointments", "Completed orders", orderRev.toFixed(2)],
+      ["Revenue", "Manual", "Manual entries", manRev.toFixed(2)],
+      ["Revenue", "TOTAL", "Total Revenue", totRev.toFixed(2)],
+      ...expenses.map((e) => ["Expense", e.category, e.description ?? "", (-Number(e.amount)).toFixed(2)]),
+      ["Expense", "TOTAL", "Total Expenses", (-totExp).toFixed(2)],
+      ["Net", "NET PROFIT / (LOSS)", "", net.toFixed(2)],
+    ];
+    downloadCsv(`pnl_${TODAY}.csv`, rows);
+  }
+
+  function exportCashFlow() {
+    const orderRev = doneOrders.reduce((s, o) => s + Number(o.total), 0);
+    const manRev   = manualRevenue.reduce((s, r) => s + Number(r.amount), 0);
+    const totRev   = orderRev + manRev;
+    const totExp   = expenses.reduce((s, e) => s + Number(e.amount), 0);
+    const rows: string[][] = [
+      ["Direction", "Description", "Date", "Amount"],
+      ["Inflow", "Appointment revenue (subtotal)", "", orderRev.toFixed(2)],
+      ...doneOrders.map((o) => ["Inflow", `Appointment ${o.id.slice(0, 8)}`, o.created_at.slice(0, 10), Number(o.total).toFixed(2)]),
+      ["Inflow", "Manual revenue (subtotal)", "", manRev.toFixed(2)],
+      ...manualRevenue.map((r) => ["Inflow", `${r.category}${r.description ? " — " + r.description : ""}`, r.revenue_date, Number(r.amount).toFixed(2)]),
+      ["Outflow", "Total expenses", "", (-totExp).toFixed(2)],
+      ...expenses.map((e) => ["Outflow", `${e.category}${e.description ? " — " + e.description : ""}`, e.expense_date, (-Number(e.amount)).toFixed(2)]),
+      ["Net", "Net cash flow", "", (totRev - totExp).toFixed(2)],
+    ];
+    downloadCsv(`cashflow_${TODAY}.csv`, rows);
+  }
+
+  function exportExpenseBreakdown() {
+    const totExp = expenses.reduce((s, e) => s + Number(e.amount), 0) || 1;
+    const byCategory: Record<string, number> = {};
+    expenses.forEach((e) => { byCategory[e.category] = (byCategory[e.category] ?? 0) + Number(e.amount); });
+    const rows: string[][] = [
+      ["Category", "Total", "Percentage"],
+      ...Object.entries(byCategory).sort((a, b) => b[1] - a[1]).map(([cat, amt]) => [cat, amt.toFixed(2), `${((amt / totExp) * 100).toFixed(1)}%`]),
+      ["TOTAL", totExp.toFixed(2), "100%"],
+    ];
+    downloadCsv(`expense_breakdown_${TODAY}.csv`, rows);
+  }
+
+  async function addBSItem(e: React.FormEvent) {
+    e.preventDefault();
+    if (!business || !bsForm.label.trim() || !bsForm.amount) return;
+    setBsError(""); setBsSaving(true);
+    const { data, error } = await supabase.from("balance_sheet_items").insert({
+      business_id: business.id, type: bsForm.type, label: bsForm.label.trim(),
+      amount: parseFloat(bsForm.amount), as_of_date: bsForm.as_of_date,
+    }).select("id, type, label, amount, as_of_date").single();
+    if (error) { setBsError(error.message); setBsSaving(false); return; }
+    setBalanceSheet((prev) => [data as BalanceSheetItem, ...prev]);
+    setBsForm(EMPTY_BS_ITEM); setAddingBSItem(false); setBsSaving(false);
+  }
+
+  async function updateBSItem(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingBSId) return;
+    const { error } = await supabase.from("balance_sheet_items").update({
+      type: editBSForm.type, label: editBSForm.label.trim(),
+      amount: parseFloat(editBSForm.amount), as_of_date: editBSForm.as_of_date,
+    }).eq("id", editingBSId);
+    if (error) return;
+    setBalanceSheet((prev) => prev.map((b) => b.id === editingBSId ? { ...b, type: editBSForm.type, label: editBSForm.label, amount: parseFloat(editBSForm.amount), as_of_date: editBSForm.as_of_date } : b));
+    setEditingBSId(null);
+  }
+
+  async function deleteBSItem(id: string) {
+    if (!window.confirm("Delete this balance sheet item?")) return;
+    const { error } = await supabase.from("balance_sheet_items").delete().eq("id", id);
+    if (!error) setBalanceSheet((prev) => prev.filter((b) => b.id !== id));
   }
 
   async function addManualRevenue(e: React.FormEvent) {
@@ -1313,8 +1417,10 @@ export default function DashboardPage() {
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                           <label style={{ fontSize: 11, color: MUTED, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase" }}>Category *</label>
-                          <input required placeholder="e.g. Supplies" value={expenseForm.category} onChange={(e) => setExpenseForm((f) => ({ ...f, category: e.target.value }))}
-                            style={{ background: BG, border: `1px solid ${BORDER}`, borderRadius: 8, padding: "11px 14px", color: TEXT, fontSize: 14, outline: "none" }} />
+                          <select required value={expenseForm.category} onChange={(e) => setExpenseForm((f) => ({ ...f, category: e.target.value }))}
+                            style={{ background: BG, border: `1px solid ${BORDER}`, borderRadius: 8, padding: "11px 14px", color: TEXT, fontSize: 14, outline: "none", cursor: "pointer" }}>
+                            {EXPENSE_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                          </select>
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                           <label style={{ fontSize: 11, color: MUTED, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase" }}>Amount *</label>
@@ -1348,8 +1454,10 @@ export default function DashboardPage() {
                       {expenses.map((exp) => editingExpenseId === exp.id ? (
                         <form key={exp.id} onSubmit={updateExpense} style={{ ...card, padding: "16px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
                           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                            <input required placeholder="Category" value={editExpenseForm.category} onChange={(e) => setEditExpenseForm((f) => ({ ...f, category: e.target.value }))}
-                              style={{ background: BG, border: `1px solid ${BORDER}`, borderRadius: 8, padding: "9px 12px", color: TEXT, fontSize: 13, outline: "none" }} />
+                            <select required value={editExpenseForm.category} onChange={(e) => setEditExpenseForm((f) => ({ ...f, category: e.target.value }))}
+                              style={{ background: BG, border: `1px solid ${BORDER}`, borderRadius: 8, padding: "9px 12px", color: TEXT, fontSize: 13, outline: "none", cursor: "pointer" }}>
+                              {EXPENSE_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                            </select>
                             <input required type="number" min="0" step="0.01" value={editExpenseForm.amount} onChange={(e) => setEditExpenseForm((f) => ({ ...f, amount: e.target.value }))}
                               style={{ background: BG, border: `1px solid ${BORDER}`, borderRadius: 8, padding: "9px 12px", color: TEXT, fontSize: 13, outline: "none" }} />
                           </div>
@@ -1383,6 +1491,247 @@ export default function DashboardPage() {
                     </div>
                   )}
                 </div>
+
+                {/* ── Balance Sheet ──────────────────────────────────────────── */}
+                {(() => {
+                  const bsAssets      = balanceSheet.filter((b) => b.type === "asset").reduce((s, b) => s + Number(b.amount), 0);
+                  const bsLiabilities = balanceSheet.filter((b) => b.type === "liability").reduce((s, b) => s + Number(b.amount), 0);
+                  const bsEquity      = balanceSheet.filter((b) => b.type === "equity").reduce((s, b) => s + Number(b.amount), 0);
+                  const bsCheck       = bsAssets - bsLiabilities - bsEquity;
+                  const bsGroups: Record<string, BalanceSheetItem[]> = { asset: [], liability: [], equity: [] };
+                  balanceSheet.forEach((b) => { (bsGroups[b.type] ??= []).push(b); });
+                  return (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <p style={{ fontSize: 11, letterSpacing: 3, color: ACCENT, fontWeight: 700, textTransform: "uppercase", margin: 0 }}>Balance Sheet</p>
+                        {!addingBSItem && (
+                          <button onClick={() => setAddingBSItem(true)}
+                            style={{ background: "none", border: `1px solid ${ACCENT}`, borderRadius: 8, padding: "8px 16px", color: ACCENT, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                            + Add item
+                          </button>
+                        )}
+                      </div>
+
+                      {addingBSItem && (
+                        <form onSubmit={addBSItem} style={{ ...card, display: "flex", flexDirection: "column", gap: 14 }}>
+                          <p style={{ fontSize: 13, fontWeight: 700, color: TEXT, margin: 0 }}>New balance sheet item</p>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                              <label style={{ fontSize: 11, color: MUTED, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase" }}>Type *</label>
+                              <select required value={bsForm.type} onChange={(e) => setBsForm((f) => ({ ...f, type: e.target.value }))}
+                                style={{ background: BG, border: `1px solid ${BORDER}`, borderRadius: 8, padding: "11px 14px", color: TEXT, fontSize: 14, outline: "none", cursor: "pointer" }}>
+                                <option value="asset">Asset</option>
+                                <option value="liability">Liability</option>
+                                <option value="equity">Equity</option>
+                              </select>
+                            </div>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                              <label style={{ fontSize: 11, color: MUTED, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase" }}>Amount *</label>
+                              <input required type="number" min="0" step="0.01" placeholder="0.00" value={bsForm.amount}
+                                onChange={(e) => setBsForm((f) => ({ ...f, amount: e.target.value }))}
+                                style={{ background: BG, border: `1px solid ${BORDER}`, borderRadius: 8, padding: "11px 14px", color: TEXT, fontSize: 14, outline: "none" }} />
+                            </div>
+                          </div>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                              <label style={{ fontSize: 11, color: MUTED, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase" }}>Label *</label>
+                              <input required autoFocus placeholder="e.g. Equipment, Bank loan, Owner equity" value={bsForm.label}
+                                onChange={(e) => setBsForm((f) => ({ ...f, label: e.target.value }))}
+                                style={{ background: BG, border: `1px solid ${BORDER}`, borderRadius: 8, padding: "11px 14px", color: TEXT, fontSize: 14, outline: "none" }} />
+                            </div>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                              <label style={{ fontSize: 11, color: MUTED, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase" }}>As-of Date *</label>
+                              <input required type="date" value={bsForm.as_of_date}
+                                onChange={(e) => setBsForm((f) => ({ ...f, as_of_date: e.target.value }))}
+                                style={{ background: BG, border: `1px solid ${BORDER}`, borderRadius: 8, padding: "11px 14px", color: TEXT, fontSize: 14, outline: "none", colorScheme: "dark" }} />
+                            </div>
+                          </div>
+                          {bsError && <p style={{ color: RED, fontSize: 12, margin: 0 }}>{bsError}</p>}
+                          <div style={{ display: "flex", gap: 10 }}>
+                            <button type="submit" disabled={bsSaving}
+                              style={{ background: ACCENT, color: BG, border: "none", borderRadius: 8, padding: "10px 20px", fontWeight: 800, fontSize: 13, cursor: bsSaving ? "not-allowed" : "pointer" }}>
+                              {bsSaving ? "Saving…" : "Add item"}
+                            </button>
+                            <button type="button" onClick={() => { setAddingBSItem(false); setBsForm(EMPTY_BS_ITEM); setBsError(""); }}
+                              style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "10px 20px", color: MUTED, fontSize: 13, cursor: "pointer" }}>
+                              Cancel
+                            </button>
+                          </div>
+                        </form>
+                      )}
+
+                      {balanceSheet.length === 0 && !addingBSItem ? (
+                        <Empty message="No balance sheet items." sub="Track assets, liabilities, and equity to see your financial position." />
+                      ) : (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                          {(["asset", "liability", "equity"] as const).map((type) => {
+                            const items     = bsGroups[type] ?? [];
+                            const subtotal  = items.reduce((s, b) => s + Number(b.amount), 0);
+                            const typeColor = type === "asset" ? GREEN : type === "liability" ? RED : ACCENT;
+                            const typeLabel = type === "asset" ? "Assets" : type === "liability" ? "Liabilities" : "Equity";
+                            return (
+                              <div key={type} style={{ ...card }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: items.length > 0 ? 14 : 0 }}>
+                                  <span style={{ fontSize: 12, fontWeight: 800, color: typeColor, textTransform: "uppercase", letterSpacing: 1 }}>{typeLabel}</span>
+                                  <span style={{ fontSize: 15, fontWeight: 900, color: typeColor, fontFamily: "monospace" }}>${subtotal.toFixed(2)}</span>
+                                </div>
+                                {items.length === 0 ? (
+                                  <p style={{ color: MUTED, fontSize: 12, margin: "8px 0 0", fontStyle: "italic" }}>No {typeLabel.toLowerCase()} recorded.</p>
+                                ) : (
+                                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                                    {items.map((b) => editingBSId === b.id ? (
+                                      <form key={b.id} onSubmit={updateBSItem} style={{ display: "flex", flexDirection: "column", gap: 10, padding: "12px 14px", background: BG, borderRadius: 8, border: `1px solid ${BORDER}` }}>
+                                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                                          <select required value={editBSForm.type} onChange={(e) => setEditBSForm((f) => ({ ...f, type: e.target.value }))}
+                                            style={{ background: BG, border: `1px solid ${BORDER}`, borderRadius: 8, padding: "8px 10px", color: TEXT, fontSize: 13, outline: "none" }}>
+                                            <option value="asset">Asset</option>
+                                            <option value="liability">Liability</option>
+                                            <option value="equity">Equity</option>
+                                          </select>
+                                          <input required type="number" min="0" step="0.01" value={editBSForm.amount}
+                                            onChange={(e) => setEditBSForm((f) => ({ ...f, amount: e.target.value }))}
+                                            style={{ background: BG, border: `1px solid ${BORDER}`, borderRadius: 8, padding: "8px 10px", color: TEXT, fontSize: 13, outline: "none" }} />
+                                        </div>
+                                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                                          <input required placeholder="Label" value={editBSForm.label}
+                                            onChange={(e) => setEditBSForm((f) => ({ ...f, label: e.target.value }))}
+                                            style={{ background: BG, border: `1px solid ${BORDER}`, borderRadius: 8, padding: "8px 10px", color: TEXT, fontSize: 13, outline: "none" }} />
+                                          <input required type="date" value={editBSForm.as_of_date}
+                                            onChange={(e) => setEditBSForm((f) => ({ ...f, as_of_date: e.target.value }))}
+                                            style={{ background: BG, border: `1px solid ${BORDER}`, borderRadius: 8, padding: "8px 10px", color: TEXT, fontSize: 13, outline: "none", colorScheme: "dark" }} />
+                                        </div>
+                                        <div style={{ display: "flex", gap: 8 }}>
+                                          <button type="submit" style={{ background: ACCENT, color: BG, border: "none", borderRadius: 8, padding: "7px 14px", fontWeight: 800, fontSize: 12, cursor: "pointer" }}>Save</button>
+                                          <button type="button" onClick={() => setEditingBSId(null)} style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "7px 12px", color: MUTED, fontSize: 12, cursor: "pointer" }}>Cancel</button>
+                                        </div>
+                                      </form>
+                                    ) : (
+                                      <div key={b.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", background: BG, borderRadius: 8, border: `1px solid ${BORDER}` }}>
+                                        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                                          <span style={{ fontWeight: 600, fontSize: 13 }}>{b.label}</span>
+                                          <span style={{ color: MUTED, fontSize: 11, fontFamily: "monospace" }}>{b.as_of_date}</span>
+                                        </div>
+                                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                          <span style={{ fontWeight: 800, fontSize: 14, color: typeColor, fontFamily: "monospace" }}>${Number(b.amount).toFixed(2)}</span>
+                                          <button onClick={() => { setEditingBSId(b.id); setEditBSForm({ type: b.type, label: b.label, amount: String(b.amount), as_of_date: b.as_of_date }); }}
+                                            style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 6, padding: "4px 9px", color: MUTED, fontSize: 11, cursor: "pointer" }}>Edit</button>
+                                          <button onClick={() => deleteBSItem(b.id)}
+                                            style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 6, padding: "4px 9px", color: MUTED, fontSize: 11, cursor: "pointer" }}>Delete</button>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                          {balanceSheet.length > 0 && (
+                            <div style={{ ...card, borderColor: Math.abs(bsCheck) < 0.01 ? GREEN + "44" : ACCENT + "44", padding: "14px 20px" }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                <span style={{ fontSize: 13, color: MUTED }}>Assets − (Liabilities + Equity)</span>
+                                <span style={{ fontSize: 14, fontWeight: 900, color: Math.abs(bsCheck) < 0.01 ? GREEN : ACCENT, fontFamily: "monospace" }}>
+                                  {Math.abs(bsCheck) < 0.01 ? "✓ Balanced" : `$${Math.abs(bsCheck).toFixed(2)} off`}
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* ── Reports — CSV Export ───────────────────────────────────── */}
+                {(() => {
+                  const expByCategory: Record<string, number> = {};
+                  expenses.forEach((e) => { expByCategory[e.category] = (expByCategory[e.category] ?? 0) + Number(e.amount); });
+                  return (
+                    <div style={{ ...card, display: "flex", flexDirection: "column", gap: 28 }}>
+                      <p style={{ fontSize: 11, letterSpacing: 3, color: ACCENT, fontWeight: 700, textTransform: "uppercase", margin: 0 }}>Reports — Export</p>
+
+                      {/* P&L */}
+                      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: TEXT }}>Profit & Loss (Last 30 days)</span>
+                          <button onClick={exportPnL}
+                            style={{ background: "none", border: `1px solid ${ACCENT}`, borderRadius: 8, padding: "7px 16px", color: ACCENT, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                            ↓ Export CSV
+                          </button>
+                        </div>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+                          {[
+                            { label: "Revenue",  value: `$${totalRevenue.toFixed(2)}`,  color: GREEN },
+                            { label: "Expenses", value: `$${totalExpenses.toFixed(2)}`, color: RED   },
+                            { label: "Net",      value: `${net < 0 ? "(" : ""}$${Math.abs(net).toFixed(2)}${net < 0 ? ")" : ""}`, color: net >= 0 ? GREEN : RED },
+                          ].map((s) => (
+                            <div key={s.label} style={{ background: BG, border: `1px solid ${BORDER}`, borderRadius: 8, padding: "14px 16px" }}>
+                              <div style={{ fontSize: 10, color: MUTED, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>{s.label}</div>
+                              <div style={{ fontSize: 20, fontWeight: 900, color: s.color, fontFamily: "monospace" }}>{s.value}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Cash Flow */}
+                      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: TEXT }}>Cash Flow Summary (Last 30 days)</span>
+                          <button onClick={exportCashFlow}
+                            style={{ background: "none", border: `1px solid ${ACCENT}`, borderRadius: 8, padding: "7px 16px", color: ACCENT, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                            ↓ Export CSV
+                          </button>
+                        </div>
+                        <div style={{ background: BG, border: `1px solid ${BORDER}`, borderRadius: 8, padding: "18px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                            <span style={{ fontSize: 13, color: MUTED }}>Operating inflows</span>
+                            <span style={{ fontWeight: 700, color: GREEN, fontFamily: "monospace" }}>+${totalRevenue.toFixed(2)}</span>
+                          </div>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                            <span style={{ fontSize: 13, color: MUTED }}>Operating outflows</span>
+                            <span style={{ fontWeight: 700, color: RED, fontFamily: "monospace" }}>−${totalExpenses.toFixed(2)}</span>
+                          </div>
+                          <div style={{ borderTop: `1px solid ${BORDER}`, paddingTop: 10, display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                            <span style={{ fontSize: 13, fontWeight: 800, color: TEXT }}>Net cash flow</span>
+                            <span style={{ fontWeight: 900, fontSize: 18, color: net >= 0 ? GREEN : RED, fontFamily: "monospace" }}>
+                              {net >= 0 ? "+" : "−"}${Math.abs(net).toFixed(2)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Expense Breakdown */}
+                      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: TEXT }}>Expense Breakdown by Category</span>
+                          <button onClick={exportExpenseBreakdown} disabled={expenses.length === 0}
+                            style={{ background: "none", border: `1px solid ${expenses.length === 0 ? BORDER : ACCENT}`, borderRadius: 8, padding: "7px 16px", color: expenses.length === 0 ? MUTED : ACCENT, fontSize: 12, fontWeight: 700, cursor: expenses.length === 0 ? "not-allowed" : "pointer", opacity: expenses.length === 0 ? 0.5 : 1 }}>
+                            ↓ Export CSV
+                          </button>
+                        </div>
+                        {Object.keys(expByCategory).length === 0 ? (
+                          <p style={{ color: MUTED, fontSize: 13, margin: 0 }}>No expenses recorded yet.</p>
+                        ) : (
+                          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                            {Object.entries(expByCategory).sort((a, b) => b[1] - a[1]).map(([cat, amt]) => {
+                              const pct = totalExpenses > 0 ? (amt / totalExpenses) * 100 : 0;
+                              return (
+                                <div key={cat}>
+                                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 5 }}>
+                                    <span style={{ fontSize: 13, color: TEXT, fontWeight: 600 }}>{cat}</span>
+                                    <span style={{ fontSize: 12, color: MUTED, fontFamily: "monospace" }}>${amt.toFixed(2)} ({pct.toFixed(1)}%)</span>
+                                  </div>
+                                  <div style={{ height: 5, background: "rgba(255,255,255,0.06)", borderRadius: 3, overflow: "hidden" }}>
+                                    <div style={{ height: "100%", width: `${pct}%`, background: RED + "88", borderRadius: 3, transition: "width 0.3s" }} />
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {(() => {
                   const periodStart = (() => {
