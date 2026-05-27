@@ -290,8 +290,8 @@ export function AppointmentCalendar({
           {cells.map((day, i) => {
             if (!day) return <div key={i} style={{ minHeight: 72 }} />;
             const dateStr  = `${y}-${String(m + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-            const dayAppts = appointments.filter(a => a.date === dateStr);
-            const hasBlock = blockedTimes.some(b => b.date === dateStr);
+            const dayAppts = appointments.filter(a => String(a.date).slice(0, 10) === dateStr);
+            const hasBlock = blockedTimes.some(b => String(b.date).slice(0, 10) === dateStr);
             const isToday  = dateStr === todayStr;
             return (
               <div key={i} onClick={() => { setView("week"); setWeekStart(getMonday(new Date(`${dateStr}T12:00:00`))); }}
@@ -333,7 +333,7 @@ export function AppointmentCalendar({
           {days.map(day => {
             const dateStr = fmt(day);
             const isToday = dateStr === todayStr;
-            const count   = appointments.filter(a => a.date === dateStr).length;
+            const count   = appointments.filter(a => String(a.date).slice(0, 10) === dateStr).length;
             return (
               <div key={dateStr} style={{ padding: "10px 6px", textAlign: "center", borderLeft: `1px solid ${BORDER}`, background: isToday ? ACCENT + "08" : "transparent" }}>
                 <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: isToday ? ACCENT : MUTED }}>
@@ -370,8 +370,8 @@ export function AppointmentCalendar({
             {/* Day columns */}
             {days.map(day => {
               const dateStr  = fmt(day);
-              const dayAppts  = appointments.filter(a => a.date === dateStr);
-              const dayBlocks = blockedTimes.filter(b => b.date === dateStr);
+              const dayAppts  = appointments.filter(a => String(a.date).slice(0, 10) === dateStr);
+              const dayBlocks = blockedTimes.filter(b => String(b.date).slice(0, 10) === dateStr);
 
               return (
                 <div key={dateStr} style={{ borderLeft: `1px solid ${BORDER}`, position: "relative", height: TOTAL_H }}>
@@ -400,7 +400,7 @@ export function AppointmentCalendar({
                     const eMin = e.getHours() * 60 + e.getMinutes();
                     const top  = minToPx(sMin);
                     const h    = durPx(sMin, eMin);
-                    if (h <= 0) return null;
+                    if (h < 0) return null;
                     return (
                       <div key={b.id}
                         title={b.reason ? `Blocked: ${b.reason}` : "Blocked — click to remove"}
@@ -429,7 +429,7 @@ export function AppointmentCalendar({
                     const h     = durPx(sMin, eMin);
                     const color = APPT_COLOR[a.status] ?? MUTED;
                     const chair = locations.find(l => l.id === a.location_id);
-                    if (h <= 0) return null;
+                    if (h < 0) return null;
                     return (
                       <div key={a.id}
                         onClick={ev => { ev.stopPropagation(); setSelectedAppt(a); }}
