@@ -206,11 +206,12 @@ export function AppointmentCalendar({
       client_phone: apptForm.client_phone.trim() || null,
       service_id:   apptForm.service_id   || null,
       service_name: svc?.name             || null,
+      date:         apptForm.date,
       start_time:   toHHMMSS(start),
       end_time:     toHHMMSS(end),
       status:       apptForm.status,
       notes:        apptForm.notes.trim() || null,
-    }).select("id,business_id,location_id,client_name,client_phone,service_id,service_name,start_time,end_time,status,notes").single();
+    }).select("id,business_id,location_id,client_name,client_phone,service_id,service_name,date,start_time,end_time,status,notes").single();
     if (error) { setApptError(error.message); setApptSaving(false); return; }
     setAppointments(p => [...p, data as Appointment]);
     setShowAddAppt(false); setApptForm(E_APPT); setApptSaving(false);
