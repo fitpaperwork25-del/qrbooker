@@ -51,6 +51,10 @@ function addDays(d: Date, n: number): Date {
   const r = new Date(d); r.setDate(r.getDate() + n); return r;
 }
 function fmt(d: Date): string { return d.toISOString().slice(0, 10); }
+function toHHMMSS(d: Date): string {
+  return [d.getHours(), d.getMinutes(), d.getSeconds()]
+    .map(n => String(n).padStart(2, "0")).join(":");
+}
 
 function minToPx(absMin: number): number {
   return ((absMin - DAY_START * 60) / 30) * SLOT_H;
@@ -202,8 +206,8 @@ export function AppointmentCalendar({
       client_phone: apptForm.client_phone.trim() || null,
       service_id:   apptForm.service_id   || null,
       service_name: svc?.name             || null,
-      start_time:   start.toISOString(),
-      end_time:     end.toISOString(),
+      start_time:   toHHMMSS(start),
+      end_time:     toHHMMSS(end),
       status:       apptForm.status,
       notes:        apptForm.notes.trim() || null,
     }).select("id,business_id,location_id,client_name,client_phone,service_id,service_name,start_time,end_time,status,notes").single();
@@ -221,9 +225,9 @@ export function AppointmentCalendar({
 
     let rows: object[];
     if (blockForm.location_id === "all") {
-      rows = locations.map(l => ({ business_id: business.id, location_id: l.id, start_time: start.toISOString(), end_time: end.toISOString(), reason: blockForm.reason.trim() || null }));
+      rows = locations.map(l => ({ business_id: business.id, location_id: l.id, start_time: toHHMMSS(start), end_time: toHHMMSS(end), reason: blockForm.reason.trim() || null }));
     } else {
-      rows = [{ business_id: business.id, location_id: blockForm.location_id || null, start_time: start.toISOString(), end_time: end.toISOString(), reason: blockForm.reason.trim() || null }];
+      rows = [{ business_id: business.id, location_id: blockForm.location_id || null, start_time: toHHMMSS(start), end_time: toHHMMSS(end), reason: blockForm.reason.trim() || null }];
     }
 
     const { data, error } = await supabase.from("blocked_times").insert(rows).select("id,location_id,start_time,end_time,reason");
