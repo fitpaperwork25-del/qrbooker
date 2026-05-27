@@ -9,6 +9,7 @@ import DashboardPage from "./pages/DashboardPage";
 import AdminPage from "./pages/AdminPage";
 import ScanPage from "./pages/ScanPage";
 import ScanLandingPage from "./pages/ScanLandingPage";
+import BookingPage from "./pages/BookingPage";
 import SuccessPage from "./pages/SuccessPage";
 import StaffDashboardPage from "./pages/StaffDashboardPage";
 import StaffLoginPage from "./pages/StaffLoginPage";
@@ -41,7 +42,7 @@ export default function App() {
       <Route path="/privacy" element={<Placeholder name="PrivacyPage" />} />
       <Route path="/scan/:bizSlug" element={<ScanLandingPage />} />
       <Route path="/scan/:bizId/:locationId" element={<ScanPage />} />
-      <Route path="/book/:slug" element={<Placeholder name="BookingPage" />} />
+      <Route path="/book/:slug" element={<BookingPage />} />
 
       {/* Owner-protected */}
       <Route
