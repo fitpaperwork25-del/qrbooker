@@ -275,7 +275,7 @@ export default function BookingPage() {
         <div style={{ display: "flex", alignItems: "center", gap: 14, paddingTop: 20, paddingBottom: 20, borderBottom: `1px solid ${BORDER}` }}>
           {business?.logo_url && (
             <img src={business.logo_url} alt=""
-              style={{ width: 56, height: 56, borderRadius: 12, objectFit: "contain", background: "#fff", padding: 4, border: `2px solid ${GOLD}55`, flexShrink: 0 }} />
+              style={{ width: 60, height: 60, borderRadius: 12, objectFit: "contain", background: "#fff", padding: 4, border: `2px solid ${GOLD}55`, flexShrink: 0, boxSizing: "border-box" }} />
           )}
           <div>
             <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: TEXT, letterSpacing: -0.5 }}>{business?.name}</h1>
