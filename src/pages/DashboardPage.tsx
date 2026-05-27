@@ -99,6 +99,11 @@ export default function DashboardPage() {
   const [itemEditError,  setItemEditError]  = useState("");
   const [itemEditSaving, setItemEditSaving] = useState(false);
 
+  const [editingLocationId,  setEditingLocationId]  = useState<string | null>(null);
+  const [editLocationForm,   setEditLocationForm]   = useState({ name: "", is_active: true });
+  const [locationEditError,  setLocationEditError]  = useState("");
+  const [locationEditSaving, setLocationEditSaving] = useState(false);
+
   const [expandedOrders, setExpandedOrders]   = useState<Set<string>>(new Set());
   const [orderItemsCache, setOrderItemsCache] = useState<Record<string, OrderItem[]>>({});
   const [openTabs, setOpenTabs]               = useState<OpenTab[]>([]);
@@ -339,6 +344,26 @@ export default function DashboardPage() {
     if (!window.confirm("Delete this item?")) return;
     const { error } = await supabase.from("menu_items").delete().eq("id", itemId);
     if (!error) setMenuItems((prev) => prev.filter((i) => i.id !== itemId));
+  }
+
+  async function updateLocation(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingLocationId) return;
+    setLocationEditError(""); setLocationEditSaving(true);
+    const { error } = await supabase.from("locations")
+      .update({ name: editLocationForm.name.trim(), is_active: editLocationForm.is_active })
+      .eq("id", editingLocationId);
+    if (error) { setLocationEditError(error.message); setLocationEditSaving(false); return; }
+    setLocations(prev => prev.map(l =>
+      l.id === editingLocationId ? { ...l, name: editLocationForm.name.trim(), is_active: editLocationForm.is_active } : l
+    ));
+    setEditingLocationId(null); setLocationEditSaving(false);
+  }
+
+  async function deleteLocation(locId: string, locName: string) {
+    if (!window.confirm(`Delete "${locName}"? This cannot be undone.`)) return;
+    const { error } = await supabase.from("locations").delete().eq("id", locId);
+    if (!error) setLocations(prev => prev.filter(l => l.id !== locId));
   }
 
   async function deleteCategory(catId: string, itemCount: number) {
@@ -810,15 +835,61 @@ export default function DashboardPage() {
                 <Empty message="No chairs yet." sub="Add your first chair or staff member to generate a QR booking code." />
               ) : (
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 16 }}>
-                  {locations.map((loc) => (
-                    <div key={loc.id} style={{ ...card, display: "flex", flexDirection: "column", gap: 10 }}>
-                      <div style={{ fontWeight: 800, fontSize: 15 }}>{loc.name}</div>
-                      {loc.label && <div style={{ color: MUTED, fontSize: 13 }}>{loc.label}</div>}
-                      <span style={{ ...badge(loc.is_active ? GREEN : MUTED), alignSelf: "flex-start" }}>{loc.is_active ? "active" : "inactive"}</span>
-                      <button onClick={() => downloadQR(loc)} style={{ marginTop: 4, background: "none", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "9px 14px", color: ACCENT, fontSize: 12, fontWeight: 700, cursor: "pointer", textAlign: "left" }}>↓ Download QR</button>
-                      <button onClick={() => downloadCard(loc)} style={{ background: "none", border: `1px solid ${ACCENT}55`, borderRadius: 8, padding: "9px 14px", color: ACCENT, fontSize: 12, fontWeight: 700, cursor: "pointer", textAlign: "left" }}>↓ Download Card</button>
-                    </div>
-                  ))}
+                  {locations.map((loc) =>
+                    editingLocationId === loc.id ? (
+                      <form key={loc.id} onSubmit={updateLocation} style={{ ...card, display: "flex", flexDirection: "column", gap: 14 }}>
+                        <p style={{ fontSize: 13, fontWeight: 700, color: TEXT, margin: 0 }}>Edit chair</p>
+                        <input
+                          required autoFocus placeholder="Chair name"
+                          value={editLocationForm.name}
+                          onChange={e => setEditLocationForm(f => ({ ...f, name: e.target.value }))}
+                          style={{ background: BG, border: `1px solid ${BORDER}`, borderRadius: 8, padding: "10px 12px", color: TEXT, fontSize: 14, outline: "none" }}
+                        />
+                        <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" as const }}>
+                          <input
+                            type="checkbox"
+                            checked={editLocationForm.is_active}
+                            onChange={e => setEditLocationForm(f => ({ ...f, is_active: e.target.checked }))}
+                            style={{ width: 16, height: 16, accentColor: ACCENT, cursor: "pointer" }}
+                          />
+                          <span style={{ fontSize: 14, color: TEXT }}>Active</span>
+                        </label>
+                        {locationEditError && <p style={{ color: RED, fontSize: 12, margin: 0 }}>{locationEditError}</p>}
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <button type="submit" disabled={locationEditSaving}
+                            style={{ background: ACCENT, color: BG, border: "none", borderRadius: 8, padding: "9px 18px", fontWeight: 800, fontSize: 13, cursor: locationEditSaving ? "not-allowed" : "pointer" }}>
+                            {locationEditSaving ? "Saving…" : "Save"}
+                          </button>
+                          <button type="button" onClick={() => { setEditingLocationId(null); setLocationEditError(""); }}
+                            style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "9px 14px", color: MUTED, fontSize: 13, cursor: "pointer" }}>
+                            Cancel
+                          </button>
+                        </div>
+                      </form>
+                    ) : (
+                      <div key={loc.id} style={{ ...card, display: "flex", flexDirection: "column", gap: 10 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                          <div style={{ fontWeight: 800, fontSize: 15, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{loc.name}</div>
+                          <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+                            <button
+                              onClick={() => { setEditingLocationId(loc.id); setEditLocationForm({ name: loc.name, is_active: loc.is_active }); setLocationEditError(""); }}
+                              style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 6, padding: "3px 9px", color: MUTED, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => deleteLocation(loc.id, loc.name)}
+                              style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 6, padding: "3px 9px", color: MUTED, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                        {loc.label && <div style={{ color: MUTED, fontSize: 13 }}>{loc.label}</div>}
+                        <span style={{ ...badge(loc.is_active ? GREEN : MUTED), alignSelf: "flex-start" }}>{loc.is_active ? "active" : "inactive"}</span>
+                        <button onClick={() => downloadQR(loc)} style={{ marginTop: 4, background: "none", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "9px 14px", color: ACCENT, fontSize: 12, fontWeight: 700, cursor: "pointer", textAlign: "left" as const }}>↓ Download QR</button>
+                        <button onClick={() => downloadCard(loc)} style={{ background: "none", border: `1px solid ${ACCENT}55`, borderRadius: 8, padding: "9px 14px", color: ACCENT, fontSize: 12, fontWeight: 700, cursor: "pointer", textAlign: "left" as const }}>↓ Download Card</button>
+                      </div>
+                    )
+                  )}
                 </div>
               )}
 
