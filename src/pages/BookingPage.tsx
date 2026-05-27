@@ -107,7 +107,7 @@ export default function BookingPage() {
   const [notFound,  setNotFound]  = useState(false);
 
   const [form, setForm] = useState({
-    name: "", phone: "", service_id: "", location_id: searchParams.get("barber") ?? "",
+    name: "", phone: "", service_id: "", location_id: "",
     date: localToday(), start_time: "09:00", duration: "60", notes: "",
   });
   const [saving,    setSaving]    = useState(false);
