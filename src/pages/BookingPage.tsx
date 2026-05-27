@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 
 const GOLD   = "#E8C547";
@@ -11,7 +11,7 @@ const MUTED  = "#666666";
 const RED    = "#f44336";
 
 type Business = { id: string; name: string; logo_url: string | null; hero_image_url: string | null };
-type Loc      = { id: string; name: string };
+type Loc      = { id: string; name: string; slug: string };
 type Cat      = { id: string; name: string; display_order: number };
 type Item     = { id: string; category_id: string; name: string; price: number; description: string | null };
 
@@ -97,6 +97,7 @@ const field: React.CSSProperties = { display: "flex", flexDirection: "column" };
 // ── Component ─────────────────────────────────────────────────
 export default function BookingPage() {
   const { slug } = useParams<{ slug: string }>();
+  const [searchParams] = useSearchParams();
 
   const [business,  setBusiness]  = useState<Business | null>(null);
   const [locations, setLocations] = useState<Loc[]>([]);
@@ -106,7 +107,7 @@ export default function BookingPage() {
   const [notFound,  setNotFound]  = useState(false);
 
   const [form, setForm] = useState({
-    name: "", phone: "", service_id: "", location_id: "",
+    name: "", phone: "", service_id: "", location_id: searchParams.get("barber") ?? "",
     date: localToday(), start_time: "09:00", duration: "60", notes: "",
   });
   const [saving,    setSaving]    = useState(false);
@@ -127,15 +128,25 @@ export default function BookingPage() {
     setBusiness(biz as Business);
 
     const [locRes, catRes] = await Promise.all([
-      supabase.from("locations").select("id, name")
+      supabase.from("locations").select("id, name, slug")
         .eq("business_id", biz.id).eq("is_active", true).order("name"),
       supabase.from("menu_categories").select("id, name, display_order")
         .eq("business_id", biz.id).order("display_order"),
     ]);
 
+    const locs = (locRes.data as Loc[]) ?? [];
     const categories = (catRes.data as Cat[]) ?? [];
-    setLocations((locRes.data as Loc[]) ?? []);
+    setLocations(locs);
     setCats(categories);
+
+    // Pre-select barber from ?barber=<slug> URL param
+    const barberSlug = searchParams.get("barber");
+    if (barberSlug) {
+      const match = locs.find(l => l.slug === barberSlug);
+      if (match) {
+        setForm(f => ({ ...f, location_id: match.id }));
+      }
+    }
 
     if (categories.length > 0) {
       const { data: menuItems } = await supabase
