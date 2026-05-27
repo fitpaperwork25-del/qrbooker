@@ -58,6 +58,22 @@ function toHHMMSS(d: Date): string {
     .map(n => String(n).padStart(2, "0")).join(":");
 }
 
+// Parse a time value from the DB into minutes-from-midnight.
+// Handles: "09:40:00", "09:40:00.000000", "09:40:00+00:00", full ISO timestamps.
+function parseTimeMin(t: string | null | undefined): number {
+  const str = String(t ?? "");
+  // Full ISO timestamp — let Date handle timezone conversion to local
+  if (str.includes("T") || (str.includes("+") && str.length > 8) || str.endsWith("Z")) {
+    const d = new Date(str);
+    return isNaN(d.getTime()) ? -1 : d.getHours() * 60 + d.getMinutes();
+  }
+  // Plain time "HH:MM" or "HH:MM:SS[.ffffff][+offset]"
+  const parts = str.split(":");
+  const h = parseInt(parts[0] ?? "", 10);
+  const m = parseInt(parts[1] ?? "", 10);
+  return (isNaN(h) || isNaN(m)) ? -1 : h * 60 + m;
+}
+
 function minToPx(absMin: number): number {
   return ((absMin - DAY_START * 60) / 30) * SLOT_H;
 }
@@ -173,6 +189,8 @@ export function AppointmentCalendar({
         .gte("date", from.slice(0, 10)).lte("date", to.slice(0, 10))
         .order("date").order("start_time"),
     ]);
+    if (aRes.error) console.error("[appointments] query error:", aRes.error);
+    if (bRes.error) console.error("[blocked_times] query error:", bRes.error);
     console.log("[appointments] loaded:", aRes.data?.length ?? 0, "rows", aRes.data);
     if (aRes.data) setAppointments(aRes.data as Appointment[]);
     if (bRes.data) setBlockedTimes(bRes.data as BlockedTime[]);
@@ -393,10 +411,9 @@ export function AppointmentCalendar({
 
                   {/* Blocked times */}
                   {dayBlocks.map(b => {
-                    const s    = new Date(`${b.date}T${b.start_time}`);
-                    const e    = new Date(`${b.date}T${b.end_time}`);
-                    const sMin = s.getHours() * 60 + s.getMinutes();
-                    const eMin = e.getHours() * 60 + e.getMinutes();
+                    const sMin = parseTimeMin(b.start_time);
+                    const eMin = parseTimeMin(b.end_time);
+                    if (sMin < 0 || eMin < 0) return null;
                     const top  = minToPx(sMin);
                     const h    = durPx(sMin, eMin);
                     if (h < 0) return null;
@@ -420,15 +437,17 @@ export function AppointmentCalendar({
 
                   {/* Appointments */}
                   {dayAppts.map(a => {
-                    const s     = new Date(`${a.date}T${a.start_time}`);
-                    const e     = new Date(`${a.date}T${a.end_time}`);
-                    const sMin  = s.getHours() * 60 + s.getMinutes();
-                    const eMin  = e.getHours() * 60 + e.getMinutes();
+                    const sMin  = parseTimeMin(a.start_time);
+                    const eMin  = parseTimeMin(a.end_time);
+                    if (sMin < 0 || eMin < 0) return null;
                     const top   = minToPx(sMin);
                     const h     = durPx(sMin, eMin);
+                    if (h < 0) return null;
                     const color = APPT_COLOR[a.status] ?? MUTED;
                     const chair = locations.find(l => l.id === a.location_id);
-                    if (h < 0) return null;
+                    const dateOnly = String(a.date).slice(0, 10);
+                    const s = new Date(`${dateOnly}T${String(a.start_time).slice(0, 8)}`);
+                    const e = new Date(`${dateOnly}T${String(a.end_time).slice(0, 8)}`);
                     return (
                       <div key={a.id}
                         onClick={ev => { ev.stopPropagation(); setSelectedAppt(a); }}
@@ -446,7 +465,7 @@ export function AppointmentCalendar({
                             {a.service_name || chair?.name || ""}
                           </div>
                         )}
-                        {h > 50 && (
+                        {h > 50 && !isNaN(s.getTime()) && (
                           <div style={{ fontSize: 9, color: MUTED }}>
                             {s.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}–{e.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                           </div>
