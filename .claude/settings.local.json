@@ -44,7 +44,11 @@
       "Bash(node -e ' *)",
       "Bash(node *)",
       "Bash(python *)",
-      "Bash(grep -oP 'eyJ[A-Za-z0-9_\\\\-]{100,}')"
+      "Bash(grep -oP 'eyJ[A-Za-z0-9_\\\\-]{100,}')",
+      "PowerShell(Set-Clipboard *)",
+      "Bash(Get-Content 'C:\\\\Users\\\\Michael Etbarekh\\\\Desktop\\\\QRBooker\\\\supabase\\\\fix_appointments_schema.sql')",
+      "Bash(Set-Clipboard)",
+      "Bash(del \"src\\\\pages\\\\BookingPage.jsx\")"
     ]
   }
 }
