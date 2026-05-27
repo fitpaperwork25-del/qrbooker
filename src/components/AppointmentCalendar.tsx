@@ -50,7 +50,9 @@ function getMonday(d: Date): Date {
 function addDays(d: Date, n: number): Date {
   const r = new Date(d); r.setDate(r.getDate() + n); return r;
 }
-function fmt(d: Date): string { return d.toISOString().slice(0, 10); }
+function fmt(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 function toHHMMSS(d: Date): string {
   return [d.getHours(), d.getMinutes(), d.getSeconds()]
     .map(n => String(n).padStart(2, "0")).join(":");
@@ -62,10 +64,6 @@ function minToPx(absMin: number): number {
 function durPx(startMin: number, endMin: number): number {
   return ((endMin - startMin) / 30) * SLOT_H;
 }
-function apptDateStr(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-CA");
-}
-
 // ── Default form values ───────────────────────────────────
 const E_APPT  = { client_name: "", client_phone: "", location_id: "", service_id: "", date: "", start_time: "09:00", duration: "60", notes: "", status: "booked" };
 const E_BLOCK = { location_id: "", date: "", start_time: "09:00", end_time: "10:00", reason: "" };
@@ -175,6 +173,7 @@ export function AppointmentCalendar({
         .gte("date", from.slice(0, 10)).lte("date", to.slice(0, 10))
         .order("date").order("start_time"),
     ]);
+    console.log("[appointments] loaded:", aRes.data?.length ?? 0, "rows", aRes.data);
     if (aRes.data) setAppointments(aRes.data as Appointment[]);
     if (bRes.data) setBlockedTimes(bRes.data as BlockedTime[]);
     setCalLoading(false);
@@ -186,8 +185,8 @@ export function AppointmentCalendar({
     } else {
       const y = monthDate.getFullYear(), m = monthDate.getMonth();
       loadRange(
-        `${new Date(y, m, 1).toISOString().slice(0, 10)}T00:00:00`,
-        `${new Date(y, m + 1, 0).toISOString().slice(0, 10)}T23:59:59`,
+        `${fmt(new Date(y, m, 1))}T00:00:00`,
+        `${fmt(new Date(y, m + 1, 0))}T23:59:59`,
       );
     }
   }, [view, weekStart, monthDate, loadRange]);
