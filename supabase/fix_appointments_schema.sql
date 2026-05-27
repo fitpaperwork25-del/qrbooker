@@ -24,18 +24,18 @@ create table if not exists appointments (
   created_at   timestamptz not null default now()
 );
 
--- Add any nullable columns that may be absent in an older table revision.
--- These are all the columns AppointmentCalendar.tsx selects or inserts.
+-- Add any columns that may be absent in an older table revision.
 alter table appointments add column if not exists location_id  uuid references locations(id) on delete set null;
 alter table appointments add column if not exists client_phone text;
 alter table appointments add column if not exists service_id   uuid references menu_items(id) on delete set null;
 alter table appointments add column if not exists service_name text;
 alter table appointments add column if not exists notes        text;
+alter table appointments add column if not exists date         date;
 
 -- Ensure indexes exist (no-ops if already present).
 create index if not exists idx_appointments_business   on appointments(business_id);
 create index if not exists idx_appointments_location   on appointments(location_id);
-create index if not exists idx_appointments_start_time on appointments(start_time);
+create index if not exists idx_appointments_date       on appointments(date);
 
 -- RLS
 alter table appointments enable row level security;
@@ -59,13 +59,14 @@ create table if not exists blocked_times (
   created_at   timestamptz not null default now()
 );
 
--- Add any nullable columns that may be absent in an older table revision.
+-- Add any columns that may be absent in an older table revision.
 alter table blocked_times add column if not exists location_id uuid references locations(id) on delete cascade;
 alter table blocked_times add column if not exists reason      text;
+alter table blocked_times add column if not exists date        date;
 
 create index if not exists idx_blocked_times_business on blocked_times(business_id);
 create index if not exists idx_blocked_times_location on blocked_times(location_id);
-create index if not exists idx_blocked_times_start    on blocked_times(start_time);
+create index if not exists idx_blocked_times_date     on blocked_times(date);
 
 alter table blocked_times enable row level security;
 

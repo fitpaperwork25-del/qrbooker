@@ -27,12 +27,12 @@ type Appointment = {
   id: string; business_id: string; location_id: string | null;
   client_name: string; client_phone: string | null;
   service_id: string | null; service_name: string | null;
-  start_time: string; end_time: string;
+  date: string; start_time: string; end_time: string;
   status: string; notes: string | null;
 };
 type BlockedTime = {
   id: string; location_id: string | null;
-  start_time: string; end_time: string; reason: string | null;
+  date: string; start_time: string; end_time: string; reason: string | null;
 };
 type Location = { id: string; name: string; label: string | null; is_active: boolean };
 type MenuItem  = { id: string; name: string; price: number; category_id: string; description: string | null; is_available: boolean; image_url: string | null };
@@ -165,15 +165,15 @@ export function AppointmentCalendar({
     setCalLoading(true);
     const [aRes, bRes] = await Promise.all([
       supabase.from("appointments")
-        .select("id,business_id,location_id,client_name,client_phone,service_id,service_name,start_time,end_time,status,notes")
+        .select("id,business_id,location_id,client_name,client_phone,service_id,service_name,date,start_time,end_time,status,notes")
         .eq("business_id", business.id as string)
-        .gte("start_time", from).lte("start_time", to)
-        .order("start_time"),
+        .gte("date", from.slice(0, 10)).lte("date", to.slice(0, 10))
+        .order("date").order("start_time"),
       supabase.from("blocked_times")
-        .select("id,location_id,start_time,end_time,reason")
+        .select("id,location_id,date,start_time,end_time,reason")
         .eq("business_id", business.id as string)
-        .gte("start_time", from).lte("start_time", to)
-        .order("start_time"),
+        .gte("date", from.slice(0, 10)).lte("date", to.slice(0, 10))
+        .order("date").order("start_time"),
     ]);
     if (aRes.data) setAppointments(aRes.data as Appointment[]);
     if (bRes.data) setBlockedTimes(bRes.data as BlockedTime[]);
@@ -226,12 +226,12 @@ export function AppointmentCalendar({
 
     let rows: object[];
     if (blockForm.location_id === "all") {
-      rows = locations.map(l => ({ business_id: business.id, location_id: l.id, start_time: toHHMMSS(start), end_time: toHHMMSS(end), reason: blockForm.reason.trim() || null }));
+      rows = locations.map(l => ({ business_id: business.id, location_id: l.id, date: blockForm.date, start_time: toHHMMSS(start), end_time: toHHMMSS(end), reason: blockForm.reason.trim() || null }));
     } else {
-      rows = [{ business_id: business.id, location_id: blockForm.location_id || null, start_time: toHHMMSS(start), end_time: toHHMMSS(end), reason: blockForm.reason.trim() || null }];
+      rows = [{ business_id: business.id, location_id: blockForm.location_id || null, date: blockForm.date, start_time: toHHMMSS(start), end_time: toHHMMSS(end), reason: blockForm.reason.trim() || null }];
     }
 
-    const { data, error } = await supabase.from("blocked_times").insert(rows).select("id,location_id,start_time,end_time,reason");
+    const { data, error } = await supabase.from("blocked_times").insert(rows).select("id,location_id,date,start_time,end_time,reason");
     if (error) { setBlockError(error.message); setBlockSaving(false); return; }
     setBlockedTimes(p => [...p, ...(data as BlockedTime[])]);
     setShowBlock(false); setBlockForm(E_BLOCK); setBlockSaving(false);
@@ -290,8 +290,8 @@ export function AppointmentCalendar({
           {cells.map((day, i) => {
             if (!day) return <div key={i} style={{ minHeight: 72 }} />;
             const dateStr  = `${y}-${String(m + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-            const dayAppts = appointments.filter(a => apptDateStr(a.start_time) === dateStr);
-            const hasBlock = blockedTimes.some(b => apptDateStr(b.start_time) === dateStr);
+            const dayAppts = appointments.filter(a => a.date === dateStr);
+            const hasBlock = blockedTimes.some(b => b.date === dateStr);
             const isToday  = dateStr === todayStr;
             return (
               <div key={i} onClick={() => { setView("week"); setWeekStart(getMonday(new Date(`${dateStr}T12:00:00`))); }}
@@ -333,7 +333,7 @@ export function AppointmentCalendar({
           {days.map(day => {
             const dateStr = fmt(day);
             const isToday = dateStr === todayStr;
-            const count   = appointments.filter(a => apptDateStr(a.start_time) === dateStr).length;
+            const count   = appointments.filter(a => a.date === dateStr).length;
             return (
               <div key={dateStr} style={{ padding: "10px 6px", textAlign: "center", borderLeft: `1px solid ${BORDER}`, background: isToday ? ACCENT + "08" : "transparent" }}>
                 <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: isToday ? ACCENT : MUTED }}>
@@ -370,8 +370,8 @@ export function AppointmentCalendar({
             {/* Day columns */}
             {days.map(day => {
               const dateStr  = fmt(day);
-              const dayAppts = appointments.filter(a => apptDateStr(a.start_time) === dateStr);
-              const dayBlocks = blockedTimes.filter(b => apptDateStr(b.start_time) === dateStr);
+              const dayAppts  = appointments.filter(a => a.date === dateStr);
+              const dayBlocks = blockedTimes.filter(b => b.date === dateStr);
 
               return (
                 <div key={dateStr} style={{ borderLeft: `1px solid ${BORDER}`, position: "relative", height: TOTAL_H }}>
@@ -394,8 +394,8 @@ export function AppointmentCalendar({
 
                   {/* Blocked times */}
                   {dayBlocks.map(b => {
-                    const s    = new Date(b.start_time);
-                    const e    = new Date(b.end_time);
+                    const s    = new Date(`${b.date}T${b.start_time}`);
+                    const e    = new Date(`${b.date}T${b.end_time}`);
                     const sMin = s.getHours() * 60 + s.getMinutes();
                     const eMin = e.getHours() * 60 + e.getMinutes();
                     const top  = minToPx(sMin);
@@ -421,8 +421,8 @@ export function AppointmentCalendar({
 
                   {/* Appointments */}
                   {dayAppts.map(a => {
-                    const s     = new Date(a.start_time);
-                    const e     = new Date(a.end_time);
+                    const s     = new Date(`${a.date}T${a.start_time}`);
+                    const e     = new Date(`${a.date}T${a.end_time}`);
                     const sMin  = s.getHours() * 60 + s.getMinutes();
                     const eMin  = e.getHours() * 60 + e.getMinutes();
                     const top   = minToPx(sMin);
@@ -692,11 +692,11 @@ export function AppointmentCalendar({
                 <div style={{ fontSize: 14, color: ACCENT, fontWeight: 700 }}>{selectedAppt.service_name}</div>
               )}
               <div style={{ fontSize: 13, color: MUTED, lineHeight: 1.6 }}>
-                {new Date(selectedAppt.start_time).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
+                {new Date(`${selectedAppt.date}T${selectedAppt.start_time}`).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
                 <br />
-                {new Date(selectedAppt.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                {new Date(`${selectedAppt.date}T${selectedAppt.start_time}`).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                 {" – "}
-                {new Date(selectedAppt.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                {new Date(`${selectedAppt.date}T${selectedAppt.end_time}`).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
               </div>
               {selectedAppt.location_id && (
                 <div style={{ fontSize: 13, color: MUTED }}>
