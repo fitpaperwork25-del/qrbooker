@@ -127,11 +127,18 @@ export default function DashboardPage() {
   const [brandingLogoUploading, setBrandingLogoUploading] = useState(false);
   const [brandingHeroUploading, setBrandingHeroUploading] = useState(false);
   const [brandingError, setBrandingError]               = useState("");
+  const [windowQrDataUrl, setWindowQrDataUrl]           = useState<string | null>(null);
 
   useEffect(() => {
     if (!session?.user.id) return;
     void load(session.user.id);
   }, [session]);
+
+  useEffect(() => {
+    if (!business?.slug) return;
+    const url = `https://qrbooker.app/book/${business.slug}`;
+    void QRCode.toDataURL(url, { width: 256, margin: 2 }).then(setWindowQrDataUrl);
+  }, [business?.slug]);
 
   useEffect(() => {
     const handler = () => setIsMobile(window.innerWidth < 640);
@@ -366,6 +373,16 @@ export default function DashboardPage() {
     const a = document.createElement("a");
     a.href = dataUrl;
     a.download = `qr-${loc.name.toLowerCase().replace(/\s+/g, "-")}.png`;
+    a.click();
+  }
+
+  async function downloadWindowQR() {
+    if (!business) return;
+    const url = `https://qrbooker.app/book/${business.slug}`;
+    const dataUrl = await QRCode.toDataURL(url, { width: 1024, margin: 2 });
+    const a = document.createElement("a");
+    a.href = dataUrl;
+    a.download = `qr-window-${business.slug}.png`;
     a.click();
   }
 
@@ -1076,6 +1093,26 @@ export default function DashboardPage() {
                     <button onClick={() => heroInputRef.current?.click()} disabled={brandingHeroUploading}
                       style={{ background: ACCENT, color: BG, border: "none", borderRadius: 8, padding: "10px 20px", fontWeight: 800, fontSize: 13, cursor: brandingHeroUploading ? "not-allowed" : "pointer", alignSelf: "flex-start" }}>
                       {brandingHeroUploading ? "Uploading..." : business.hero_image_url ? "Replace Hero Image" : "Upload Hero Image"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Window QR Code */}
+              <div style={card}>
+                <p style={{ fontSize: 11, letterSpacing: 3, color: ACCENT, fontWeight: 700, textTransform: "uppercase", marginBottom: 20 }}>Window QR Code</p>
+                <div style={{ display: "flex", alignItems: "flex-start", gap: 20, flexWrap: "wrap" }}>
+                  {windowQrDataUrl ? (
+                    <img src={windowQrDataUrl} alt="Window QR Code" style={{ width: 128, height: 128, borderRadius: 8, border: `1px solid ${BORDER}`, background: "#ffffff", padding: 4 }} />
+                  ) : (
+                    <div style={{ width: 128, height: 128, borderRadius: 8, background: BG, border: `2px dashed ${BORDER}`, display: "flex", alignItems: "center", justifyContent: "center", color: MUTED, fontSize: 12 }}>Generating...</div>
+                  )}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <p style={{ color: MUTED, fontSize: 13, margin: 0 }}>Print and display in your window. Customers scan to book any available barber.</p>
+                    <p style={{ color: MUTED, fontSize: 12, margin: 0, fontFamily: "monospace" }}>qrbooker.app/book/{business.slug}</p>
+                    <button onClick={downloadWindowQR}
+                      style={{ background: ACCENT, color: BG, border: "none", borderRadius: 8, padding: "10px 20px", fontWeight: 800, fontSize: 13, cursor: "pointer", alignSelf: "flex-start" }}>
+                      Download PNG
                     </button>
                   </div>
                 </div>
