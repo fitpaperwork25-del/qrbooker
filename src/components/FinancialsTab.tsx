@@ -347,16 +347,21 @@ function OverviewTab({ appointments, expenses, draws, depAssets, locations }: {
       {/* 30-day appointments trend */}
       <div style={card}>
         <p style={label11}>Appointments — Last 30 Days</p>
-        <div style={{ display: "flex", alignItems: "flex-end", gap: 3, height: 80 }}>
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 3, height: 80, overflow: "hidden" }}>
           {days30.map((day) => {
             const val = apptByDay[day];
-            const pct = (val / maxAppt) * 100;
+            const barH = Math.round((val / maxAppt) * 76);
             return (
-              <div key={day} title={`${day}: ${val}`} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", height: "100%" }}>
-                <div style={{ flex: 1, display: "flex", alignItems: "flex-end", width: "100%" }}>
-                  <div style={{ width: "100%", height: `${Math.max(pct, val > 0 ? 5 : 0)}%`, background: ACCENT + "99", borderRadius: "2px 2px 0 0", minHeight: val > 0 ? 3 : 0 }} />
-                </div>
-              </div>
+              <div
+                key={day}
+                title={`${day}: ${val}`}
+                style={{
+                  flex: 1,
+                  height: Math.max(barH, val > 0 ? 4 : 0),
+                  background: ACCENT + "99",
+                  borderRadius: "2px 2px 0 0",
+                }}
+              />
             );
           })}
         </div>

@@ -687,11 +687,11 @@ export default function DashboardPage() {
                 <div style={{ fontSize: 11, color: MUTED, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>{info.label}</div>
                 <div style={{ fontSize: 28, fontWeight: 900, color: ACCENT, marginBottom: 12 }}>{info.price}</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 20 }}>
-                  {info.features.map((f) => <div key={f} style={{ fontSize: 13, color: MUTED, display: "flex", gap: 8 }}><span style={{ color: GREEN }}>✓</span>{f}</div>)}
+                  {info.features.map((f) => <div key={f} style={{ fontSize: 13, color: MUTED, display: "flex", gap: 8 }}><span style={{ color: GREEN }}>{'\u2713'}</span>{f}</div>)}
                 </div>
                 <button onClick={() => startCheckout(planKey)} disabled={upgrading === planKey}
                   style={{ width: "100%", background: info.recommended ? ACCENT : "none", color: info.recommended ? BG : ACCENT, border: `1.5px solid ${ACCENT}`, borderRadius: 8, padding: "12px", fontWeight: 800, fontSize: 14, cursor: upgrading === planKey ? "not-allowed" : "pointer" }}>
-                  {upgrading === planKey ? "Redirecting..." : `Upgrade to ${info.label} →`}
+                  {upgrading === planKey ? "Redirecting..." : `Upgrade to ${info.label} \u2192`}
                 </button>
               </div>
             ))}
