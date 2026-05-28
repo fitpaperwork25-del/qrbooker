@@ -120,11 +120,11 @@ export default function StaffLoginPage() {
 
         <div style={{ marginBottom: 14 }}>
           <div style={{ color: MUTED, fontSize: 12, marginBottom: 6, fontWeight: 600 }}>
-            Restaurant ID
+            Business Slug
           </div>
           <input
             type="text"
-            placeholder="e.g. snelling-cafe"
+            placeholder="e.g. barbershop-21"
             value={slug}
             onChange={(e) => setSlug(e.target.value)}
             onKeyDown={handleKeyDown}

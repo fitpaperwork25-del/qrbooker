@@ -197,7 +197,7 @@ export default function StaffDashboardPage() {
       {/* Header */}
       <header style={{ background: SURFACE, borderBottom: `1px solid ${BORDER}`, padding: "16px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 10 }}>
         <div>
-          <div style={{ fontSize: 11, letterSpacing: 3, color: ACCENT, fontWeight: 700, textTransform: "uppercase", marginBottom: 2 }}>Kitchen View</div>
+          <div style={{ fontSize: 11, letterSpacing: 3, color: ACCENT, fontWeight: 700, textTransform: "uppercase", marginBottom: 2 }}>Appointment View</div>
           <div style={{ fontWeight: 900, fontSize: 18 }}>{bizName}</div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>

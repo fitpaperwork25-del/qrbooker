@@ -331,7 +331,7 @@ function OverviewTab({ appointments, expenses, draws, depAssets, locations }: {
             sub: topBarber ? `${topBarber[1]} bookings` : "" },
           { label: "Busiest Day",     value: busiestDay?.[0]?.slice(0, 3) ?? "—",   color: TEXT,
             sub: busiestDay ? `${busiestDay[1]} appts` : "" },
-          { label: "Rev This Month",  value: fmt(thisMonthRev),                      color: GREEN,
+          { label: "Revenue (Mo.)",   value: fmt(thisMonthRev),                      color: GREEN,
             sub: `${revChange >= 0 ? "+" : ""}${revChange.toFixed(0)}% vs last month` },
           { label: "Expenses (Mo.)",  value: fmt(totalMonthExp),                     color: RED },
           { label: "Net Profit (Mo.)", value: fmt(netProfit),                        color: netProfit >= 0 ? GREEN : RED },
@@ -347,12 +347,12 @@ function OverviewTab({ appointments, expenses, draws, depAssets, locations }: {
       {/* 30-day appointments trend */}
       <div style={card}>
         <p style={label11}>Appointments — Last 30 Days</p>
-        <div style={{ display: "flex", alignItems: "flex-end", gap: 3, height: 80, overflowX: "auto" }}>
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 3, height: 80 }}>
           {days30.map((day) => {
             const val = apptByDay[day];
             const pct = (val / maxAppt) * 100;
             return (
-              <div key={day} title={`${day}: ${val}`} style={{ flex: "0 0 calc(100%/30)", minWidth: 6, display: "flex", flexDirection: "column", alignItems: "center", height: "100%" }}>
+              <div key={day} title={`${day}: ${val}`} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", height: "100%" }}>
                 <div style={{ flex: 1, display: "flex", alignItems: "flex-end", width: "100%" }}>
                   <div style={{ width: "100%", height: `${Math.max(pct, val > 0 ? 5 : 0)}%`, background: ACCENT + "99", borderRadius: "2px 2px 0 0", minHeight: val > 0 ? 3 : 0 }} />
                 </div>
