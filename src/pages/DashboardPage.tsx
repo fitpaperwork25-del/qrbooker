@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import QRCode from "qrcode";
 import { useAuth } from "../lib/useAuth";
 import { supabase } from "../lib/supabase";
@@ -109,7 +109,7 @@ export default function DashboardPage() {
 
   const [upgrading, setUpgrading] = useState<string | null>(null);
 
-  // â”€â”€ CSV Import â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- CSV Import -------------------------------------------
   const csvInputRef                           = useRef<HTMLInputElement>(null);
   const [csvRows, setCsvRows]                 = useState<CsvRow[]>([]);
   const [csvImporting, setCsvImporting]       = useState(false);
@@ -189,7 +189,7 @@ export default function DashboardPage() {
             plan: "starter", subscription_status: "trialing",
           }).select("*").single();
           biz = created as Business | null;
-        } catch { /* ignore â€” fall through to no-business UI */ }
+        } catch { /* ignore - fall through to no-business UI */ }
         localStorage.removeItem("qw_pending_registration");
       }
     }
@@ -369,7 +369,7 @@ export default function DashboardPage() {
     a.click();
   }
 
-  // â”€â”€ Download Card (branded 6Ã—4 PNG, 1800Ã—1200) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- Download Card (branded 6Ã—4 PNG, 1800Ã—1200) ----------
   async function downloadCard(loc: Location) {
     if (!business) return;
     const scanUrl = `${window.location.origin}/scan/${business.id}/${loc.id}`;
@@ -396,7 +396,7 @@ export default function DashboardPage() {
     ctx.lineWidth = 3;
     ctx.strokeRect(36, 36, W - 72, H - 72);
 
-    // â”€â”€ Wordmark: "QR" white + "Serve" gold â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // -- Wordmark: "QR" white + "Serve" gold -------------
     ctx.font = "900 80px 'Arial Black', Arial, sans-serif";
     const qrW = ctx.measureText("QR").width;
     const serveW = ctx.measureText("Wegn").width;
@@ -428,7 +428,7 @@ export default function DashboardPage() {
     ctx.textAlign = "center";
     ctx.fillText(business.name, W / 2, 282);
 
-    // â”€â”€ QR code â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // -- QR code ------------------------------------------
     const qrImg = new Image();
     await new Promise<void>((resolve) => { qrImg.onload = () => resolve(); qrImg.src = qrDataUrl; });
 
@@ -451,7 +451,7 @@ export default function DashboardPage() {
 
     ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
 
-    // â”€â”€ Chair name â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // -- Chair name ---------------------------------------
     ctx.font = "900 56px 'Arial Black', Arial, sans-serif";
     ctx.fillStyle = "#E8C547";
     ctx.textAlign = "center";
@@ -474,7 +474,7 @@ export default function DashboardPage() {
     a.click();
   }
 
-  // â”€â”€ CSV Import Functions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- CSV Import Functions ---------------------------------
   function downloadCsvTemplate() {
     const template = "category,name,price,description\nSalads,Caesar Salad,12.50,Romaine lettuce with Caesar dressing\nMains,Grilled Chicken,15.99,Served with fries and salad\n";
     const blob = new Blob([template], { type: "text/csv" });
@@ -561,7 +561,7 @@ export default function DashboardPage() {
     if (error) { setCsvError(`Import failed: ${error.message}`); setCsvImporting(false); return; }
 
     setMenuItems((prev) => [...prev, ...(data as MenuItem[])]);
-    setCsvSuccess(`âœ“ Imported ${validRows.length} items successfully.`);
+    setCsvSuccess(`✓ Imported ${validRows.length} items successfully.`);
     setCsvRows([]);
     setCsvImporting(false);
   }
@@ -612,14 +612,14 @@ export default function DashboardPage() {
   }
 
   if (loading) {
-    return <div style={{ background: BG, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: MUTED, fontFamily: "sans-serif" }}>Loadingâ€¦</div>;
+    return <div style={{ background: BG, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: MUTED, fontFamily: "sans-serif" }}>Loading...</div>;
   }
 
   if (!business) {
     return (
       <div style={{ background: BG, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: MUTED, fontFamily: "sans-serif", flexDirection: "column", gap: 16 }}>
         <p>No business found for this account.</p>
-        <button onClick={() => window.location.href = "/register"} style={{ background: ACCENT, color: BG, border: "none", borderRadius: 8, padding: "12px 24px", fontWeight: 800, cursor: "pointer" }}>Set up your business â†’</button>
+        <button onClick={() => window.location.href = "/register"} style={{ background: ACCENT, color: BG, border: "none", borderRadius: 8, padding: "12px 24px", fontWeight: 800, cursor: "pointer" }}>Set up your business →</button>
       </div>
     );
   }
@@ -664,12 +664,12 @@ export default function DashboardPage() {
         {/* Setup checklist */}
         {!allDone && (
           <div style={card}>
-            <p style={{ fontSize: 11, letterSpacing: 3, color: ACCENT, fontWeight: 700, textTransform: "uppercase", marginBottom: 16 }}>Setup â€” {checklistDone}/{checklist.length} done</p>
+            <p style={{ fontSize: 11, letterSpacing: 3, color: ACCENT, fontWeight: 700, textTransform: "uppercase", marginBottom: 16 }}>Setup - {checklistDone}/{checklist.length} done</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {checklist.map((item) => (
                 <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 12 }}>
                   <span style={{ width: 20, height: 20, borderRadius: "50%", background: item.done ? GREEN : BORDER, border: `2px solid ${item.done ? GREEN : BORDER}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: BG, fontWeight: 800, flexShrink: 0 }}>
-                    {item.done ? "âœ“" : ""}
+                    {item.done ? "✓" : ""}
                   </span>
                   <span style={{ color: item.done ? MUTED : TEXT, fontSize: 14, textDecoration: item.done ? "line-through" : "none" }}>{item.label}</span>
                 </div>
@@ -687,11 +687,11 @@ export default function DashboardPage() {
                 <div style={{ fontSize: 11, color: MUTED, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>{info.label}</div>
                 <div style={{ fontSize: 28, fontWeight: 900, color: ACCENT, marginBottom: 12 }}>{info.price}</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 20 }}>
-                  {info.features.map((f) => <div key={f} style={{ fontSize: 13, color: MUTED, display: "flex", gap: 8 }}><span style={{ color: GREEN }}>âœ“</span>{f}</div>)}
+                  {info.features.map((f) => <div key={f} style={{ fontSize: 13, color: MUTED, display: "flex", gap: 8 }}><span style={{ color: GREEN }}>✓</span>{f}</div>)}
                 </div>
                 <button onClick={() => startCheckout(planKey)} disabled={upgrading === planKey}
                   style={{ width: "100%", background: info.recommended ? ACCENT : "none", color: info.recommended ? BG : ACCENT, border: `1.5px solid ${ACCENT}`, borderRadius: 8, padding: "12px", fontWeight: 800, fontSize: 14, cursor: upgrading === planKey ? "not-allowed" : "pointer" }}>
-                  {upgrading === planKey ? "Redirectingâ€¦" : `Upgrade to ${info.label} â†’`}
+                  {upgrading === planKey ? "Redirecting..." : `Upgrade to ${info.label} →`}
                 </button>
               </div>
             ))}
@@ -722,7 +722,7 @@ export default function DashboardPage() {
                     style={{ background: BG, border: `1px solid ${BORDER}`, borderRadius: 8, padding: "11px 14px", color: TEXT, fontSize: 14, outline: "none" }} />
                   {tableError && <p style={{ color: RED, fontSize: 12, margin: 0 }}>{tableError}</p>}
                   <div style={{ display: "flex", gap: 10 }}>
-                    <button type="submit" disabled={tableSaving} style={{ background: ACCENT, color: BG, border: "none", borderRadius: 8, padding: "10px 20px", fontWeight: 800, fontSize: 13, cursor: tableSaving ? "not-allowed" : "pointer" }}>{tableSaving ? "Savingâ€¦" : "Add chair"}</button>
+                    <button type="submit" disabled={tableSaving} style={{ background: ACCENT, color: BG, border: "none", borderRadius: 8, padding: "10px 20px", fontWeight: 800, fontSize: 13, cursor: tableSaving ? "not-allowed" : "pointer" }}>{tableSaving ? "Saving..." : "Add chair"}</button>
                     <button type="button" onClick={() => { setAddingTable(false); setNewTableName(""); setTableError(""); }} style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "10px 20px", color: MUTED, fontSize: 13, cursor: "pointer" }}>Cancel</button>
                   </div>
                 </form>
@@ -756,7 +756,7 @@ export default function DashboardPage() {
                         <div style={{ display: "flex", gap: 8 }}>
                           <button type="submit" disabled={locationEditSaving}
                             style={{ background: ACCENT, color: BG, border: "none", borderRadius: 8, padding: "9px 18px", fontWeight: 800, fontSize: 13, cursor: locationEditSaving ? "not-allowed" : "pointer" }}>
-                            {locationEditSaving ? "Savingâ€¦" : "Save"}
+                            {locationEditSaving ? "Saving..." : "Save"}
                           </button>
                           <button type="button" onClick={() => { setEditingLocationId(null); setLocationEditError(""); }}
                             style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "9px 14px", color: MUTED, fontSize: 13, cursor: "pointer" }}>
@@ -783,8 +783,8 @@ export default function DashboardPage() {
                         </div>
                         {loc.label && <div style={{ color: MUTED, fontSize: 13 }}>{loc.label}</div>}
                         <span style={{ ...badge(loc.is_active ? GREEN : MUTED), alignSelf: "flex-start" }}>{loc.is_active ? "active" : "inactive"}</span>
-                        <button onClick={() => downloadQR(loc)} style={{ marginTop: 4, background: "none", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "9px 14px", color: ACCENT, fontSize: 12, fontWeight: 700, cursor: "pointer", textAlign: "left" as const }}>â†“ Download QR</button>
-                        <button onClick={() => downloadCard(loc)} style={{ background: "none", border: `1px solid ${ACCENT}55`, borderRadius: 8, padding: "9px 14px", color: ACCENT, fontSize: 12, fontWeight: 700, cursor: "pointer", textAlign: "left" as const }}>â†“ Download Card</button>
+                        <button onClick={() => downloadQR(loc)} style={{ marginTop: 4, background: "none", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "9px 14px", color: ACCENT, fontSize: 12, fontWeight: 700, cursor: "pointer", textAlign: "left" as const }}>↓ Download QR</button>
+                        <button onClick={() => downloadCard(loc)} style={{ background: "none", border: `1px solid ${ACCENT}55`, borderRadius: 8, padding: "9px 14px", color: ACCENT, fontSize: 12, fontWeight: 700, cursor: "pointer", textAlign: "left" as const }}>↓ Download Card</button>
                       </div>
                     )
                   )}
@@ -796,7 +796,7 @@ export default function DashboardPage() {
                 <p style={{ fontSize: 11, letterSpacing: 3, color: ACCENT, fontWeight: 700, textTransform: "uppercase", margin: "0 0 6px" }}>Staff PIN</p>
                 <p style={{ fontSize: 13, color: MUTED, margin: "0 0 16px", lineHeight: 1.5 }}>
                   Your staff use this PIN to log in at <span style={{ color: TEXT, fontFamily: "monospace" }}>/staff-login</span>.
-                  {business?.staff_pin && <span> Current PIN: <span style={{ color: TEXT, letterSpacing: 4, fontFamily: "monospace" }}>{"â€¢".repeat(business.staff_pin.length)}</span></span>}
+                  {business?.staff_pin && <span> Current PIN: <span style={{ color: TEXT, letterSpacing: 4, fontFamily: "monospace" }}>{"•".repeat(business.staff_pin.length)}</span></span>}
                 </p>
                 <form onSubmit={savePin} style={{ display: "flex", gap: 10, alignItems: "flex-start", flexWrap: "wrap" }}>
                   <input
@@ -823,7 +823,7 @@ export default function DashboardPage() {
                         opacity: pinInput.length !== 4 ? 0.5 : 1,
                       }}
                     >
-                      {pinSaving ? "Savingâ€¦" : pinSaved ? "Saved âœ“" : "Update PIN"}
+                      {pinSaving ? "Saving..." : pinSaved ? "Saved ✓" : "Update PIN"}
                     </button>
                     {pinError && <p style={{ color: RED, fontSize: 12, margin: 0 }}>{pinError}</p>}
                   </div>
@@ -842,7 +842,7 @@ export default function DashboardPage() {
                 {categories.length > 0 && <button onClick={() => { setAddingItem(true); setAddingCat(false); setItemForm({ ...EMPTY_ITEM, category_id: categories[0].id }); }} style={{ background: ACCENT, border: "none", borderRadius: 8, padding: "10px 20px", color: BG, fontWeight: 800, fontSize: 13, cursor: "pointer" }}>+ Add service</button>}
                 {/* CSV Import */}
                 <input ref={csvInputRef} type="file" accept=".csv" style={{ display: "none" }} onChange={handleCsvFile} />
-                <button onClick={() => csvInputRef.current?.click()} style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "10px 20px", color: MUTED, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>â†‘ Import CSV</button>
+                <button onClick={() => csvInputRef.current?.click()} style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "10px 20px", color: MUTED, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>↑ Import CSV</button>
                 <button onClick={downloadCsvTemplate} style={{ background: "none", border: "none", color: MUTED, fontSize: 12, cursor: "pointer", textDecoration: "underline", padding: "10px 0" }}>Download template</button>
               </div>
 
@@ -855,12 +855,12 @@ export default function DashboardPage() {
                 <div style={{ ...card, display: "flex", flexDirection: "column", gap: 16 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <p style={{ fontSize: 11, letterSpacing: 3, color: ACCENT, fontWeight: 700, textTransform: "uppercase", margin: 0 }}>
-                      CSV Preview â€” {csvRows.filter((r) => !r.error).length} valid / {csvRows.length} total
+                      CSV Preview - {csvRows.filter((r) => !r.error).length} valid / {csvRows.length} total
                     </p>
                     <div style={{ display: "flex", gap: 8 }}>
                       <button onClick={importCsvItems} disabled={csvImporting || csvRows.filter((r) => !r.error).length === 0}
                         style={{ background: GREEN, color: BG, border: "none", borderRadius: 8, padding: "8px 18px", fontWeight: 800, fontSize: 13, cursor: csvImporting ? "not-allowed" : "pointer" }}>
-                        {csvImporting ? "Importingâ€¦" : `Import ${csvRows.filter((r) => !r.error).length} items`}
+                        {csvImporting ? "Importing..." : `Import ${csvRows.filter((r) => !r.error).length} items`}
                       </button>
                       <button onClick={() => { setCsvRows([]); setCsvError(""); }} style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "8px 14px", color: MUTED, fontSize: 13, cursor: "pointer" }}>Cancel</button>
                     </div>
@@ -877,7 +877,7 @@ export default function DashboardPage() {
                         <span style={{ fontSize: 13, color: TEXT }}>{row.name}</span>
                         <span style={{ fontSize: 13, color: ACCENT }}>${parseFloat(row.price || "0").toFixed(2)}</span>
                         <span style={{ fontSize: 12, color: MUTED }}>{row.description}</span>
-                        <span style={{ fontSize: 11, color: row.error ? RED : GREEN }}>{row.error ? "âœ—" : "âœ“"}</span>
+                        <span style={{ fontSize: 11, color: row.error ? RED : GREEN }}>{row.error ? "x" : "✓"}</span>
                       </div>
                     ))}
                   </div>
@@ -891,7 +891,7 @@ export default function DashboardPage() {
                     style={{ background: BG, border: `1px solid ${BORDER}`, borderRadius: 8, padding: "11px 14px", color: TEXT, fontSize: 14, outline: "none" }} />
                   {catError && <p style={{ color: RED, fontSize: 12, margin: 0 }}>{catError}</p>}
                   <div style={{ display: "flex", gap: 10 }}>
-                    <button type="submit" disabled={catSaving} style={{ background: ACCENT, color: BG, border: "none", borderRadius: 8, padding: "10px 20px", fontWeight: 800, fontSize: 13, cursor: catSaving ? "not-allowed" : "pointer" }}>{catSaving ? "Savingâ€¦" : "Add category"}</button>
+                    <button type="submit" disabled={catSaving} style={{ background: ACCENT, color: BG, border: "none", borderRadius: 8, padding: "10px 20px", fontWeight: 800, fontSize: 13, cursor: catSaving ? "not-allowed" : "pointer" }}>{catSaving ? "Saving..." : "Add category"}</button>
                     <button type="button" onClick={() => { setAddingCat(false); setNewCatName(""); setCatError(""); }} style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "10px 20px", color: MUTED, fontSize: 13, cursor: "pointer" }}>Cancel</button>
                   </div>
                 </form>
@@ -935,12 +935,12 @@ export default function DashboardPage() {
                         {itemImageFile ? "Change image" : "Upload image"}
                       </button>
                       {itemImageFile && <button type="button" onClick={() => setItemImageFile(null)}
-                        style={{ background: "none", border: "none", color: MUTED, fontSize: 12, cursor: "pointer" }}>âœ• Remove</button>}
+                        style={{ background: "none", border: "none", color: MUTED, fontSize: 12, cursor: "pointer" }}>x Remove</button>}
                     </div>
                   </div>
                   {itemError && <p style={{ color: RED, fontSize: 12, margin: 0 }}>{itemError}</p>}
                   <div style={{ display: "flex", gap: 10 }}>
-                    <button type="submit" disabled={itemSaving || itemImageUploading} style={{ background: ACCENT, color: BG, border: "none", borderRadius: 8, padding: "10px 20px", fontWeight: 800, fontSize: 13, cursor: (itemSaving || itemImageUploading) ? "not-allowed" : "pointer" }}>{itemSaving || itemImageUploading ? "Savingâ€¦" : "Add item"}</button>
+                    <button type="submit" disabled={itemSaving || itemImageUploading} style={{ background: ACCENT, color: BG, border: "none", borderRadius: 8, padding: "10px 20px", fontWeight: 800, fontSize: 13, cursor: (itemSaving || itemImageUploading) ? "not-allowed" : "pointer" }}>{itemSaving || itemImageUploading ? "Saving..." : "Add item"}</button>
                     <button type="button" onClick={() => { setAddingItem(false); setItemForm(EMPTY_ITEM); setItemError(""); setItemImageFile(null); }} style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "10px 20px", color: MUTED, fontSize: 13, cursor: "pointer" }}>Cancel</button>
                   </div>
                 </form>
@@ -984,11 +984,11 @@ export default function DashboardPage() {
                                       {item.image_url || editItemImageFile ? "Change image" : "Add image"}
                                     </button>
                                     {editItemImageFile && <button type="button" onClick={() => setEditItemImageFile(null)}
-                                      style={{ background: "none", border: "none", color: MUTED, fontSize: 12, cursor: "pointer" }}>âœ•</button>}
+                                      style={{ background: "none", border: "none", color: MUTED, fontSize: 12, cursor: "pointer" }}>x</button>}
                                   </div>
                                   {itemEditError && <p style={{ color: RED, fontSize: 12, margin: 0 }}>{itemEditError}</p>}
                                   <div style={{ display: "flex", gap: 8 }}>
-                                    <button type="submit" disabled={itemEditSaving} style={{ background: ACCENT, color: BG, border: "none", borderRadius: 8, padding: "8px 18px", fontWeight: 800, fontSize: 13, cursor: itemEditSaving ? "not-allowed" : "pointer" }}>{itemEditSaving ? "Savingâ€¦" : "Save"}</button>
+                                    <button type="submit" disabled={itemEditSaving} style={{ background: ACCENT, color: BG, border: "none", borderRadius: 8, padding: "8px 18px", fontWeight: 800, fontSize: 13, cursor: itemEditSaving ? "not-allowed" : "pointer" }}>{itemEditSaving ? "Saving..." : "Save"}</button>
                                     <button type="button" onClick={() => { setEditingItemId(null); setItemEditError(""); setEditItemImageFile(null); }} style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "8px 16px", color: MUTED, fontSize: 13, cursor: "pointer" }}>Cancel</button>
                                   </div>
                                 </form>
@@ -1055,7 +1055,7 @@ export default function DashboardPage() {
                     <input ref={logoInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleLogoUpload} />
                     <button onClick={() => logoInputRef.current?.click()} disabled={brandingLogoUploading}
                       style={{ background: ACCENT, color: BG, border: "none", borderRadius: 8, padding: "10px 20px", fontWeight: 800, fontSize: 13, cursor: brandingLogoUploading ? "not-allowed" : "pointer", alignSelf: "flex-start" }}>
-                      {brandingLogoUploading ? "Uploadingâ€¦" : business.logo_url ? "Replace Logo" : "Upload Logo"}
+                      {brandingLogoUploading ? "Uploading..." : business.logo_url ? "Replace Logo" : "Upload Logo"}
                     </button>
                   </div>
                 </div>
@@ -1075,7 +1075,7 @@ export default function DashboardPage() {
                     <input ref={heroInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleHeroUpload} />
                     <button onClick={() => heroInputRef.current?.click()} disabled={brandingHeroUploading}
                       style={{ background: ACCENT, color: BG, border: "none", borderRadius: 8, padding: "10px 20px", fontWeight: 800, fontSize: 13, cursor: brandingHeroUploading ? "not-allowed" : "pointer", alignSelf: "flex-start" }}>
-                      {brandingHeroUploading ? "Uploadingâ€¦" : business.hero_image_url ? "Replace Hero Image" : "Upload Hero Image"}
+                      {brandingHeroUploading ? "Uploading..." : business.hero_image_url ? "Replace Hero Image" : "Upload Hero Image"}
                     </button>
                   </div>
                 </div>

@@ -650,6 +650,83 @@ function TransactionsTab({ business, expenses, setExpenses, draws, setDraws }: {
   );
 }
 
+// Balance Sheet Section — module-level component (stable identity, inputs retain focus)
+function BsSection({ title, items, type, color, addingType, setAddingType, form, setForm, err, saving, onAdd, editId, setEditId, editForm, setEditForm, onUpdate, onDelete }: {
+  title: string; items: BSItem[]; type: "asset" | "liability" | "equity"; color: string;
+  addingType: "asset" | "liability" | "equity" | null;
+  setAddingType: (t: "asset" | "liability" | "equity" | null) => void;
+  form: { label: string; amount: string; as_of_date: string };
+  setForm: (f: { label: string; amount: string; as_of_date: string }) => void;
+  err: string; saving: boolean;
+  onAdd: (e: React.FormEvent) => void;
+  editId: string | null; setEditId: (id: string | null) => void;
+  editForm: { label: string; amount: string; as_of_date: string };
+  setEditForm: (f: { label: string; amount: string; as_of_date: string }) => void;
+  onUpdate: (e: React.FormEvent) => void;
+  onDelete: (id: string) => void;
+}) {
+  const total = items.reduce((s, x) => s + Number(x.amount), 0);
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+        <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, color, textTransform: "uppercase" }}>{title}</span>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color }}>{fmt(total)}</span>
+          <button onClick={() => { setAddingType(type); setForm({ label: "", amount: "", as_of_date: TODAY }); }}
+            style={{ ...btnOutline(), padding: "4px 10px", fontSize: 11 }}>+ Add</button>
+        </div>
+      </div>
+      {addingType === type && (
+        <form onSubmit={onAdd} style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12, padding: 12, background: BG, borderRadius: 8 }}>
+          <input type="text" placeholder="Label" value={form.label}
+            onChange={(e) => setForm({ ...form, label: e.target.value })} style={inputStyle} required />
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            <input type="number" min="0" step="0.01" placeholder="Amount" value={form.amount}
+              onChange={(e) => setForm({ ...form, amount: e.target.value })} style={inputStyle} required />
+            <input type="date" value={form.as_of_date}
+              onChange={(e) => setForm({ ...form, as_of_date: e.target.value })} style={inputStyle} />
+          </div>
+          {err && <p style={{ color: RED, fontSize: 12, margin: 0 }}>{err}</p>}
+          <div style={{ display: "flex", gap: 8 }}>
+            <button type="submit" disabled={saving} style={btnPrimary}>{saving ? "Saving..." : "Save"}</button>
+            <button type="button" onClick={() => setAddingType(null)} style={btnOutline()}>Cancel</button>
+          </div>
+        </form>
+      )}
+      {items.map((x) => (
+        <div key={x.id}>
+          {editId === x.id ? (
+            <form onSubmit={onUpdate} style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 8, padding: 10, background: BG, borderRadius: 8 }}>
+              <input type="text" value={editForm.label} onChange={(e) => setEditForm({ ...editForm, label: e.target.value })} style={inputStyle} />
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                <input type="number" value={editForm.amount} onChange={(e) => setEditForm({ ...editForm, amount: e.target.value })} style={inputStyle} />
+                <input type="date" value={editForm.as_of_date} onChange={(e) => setEditForm({ ...editForm, as_of_date: e.target.value })} style={inputStyle} />
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button type="submit" style={btnPrimary}>Save</button>
+                <button type="button" onClick={() => setEditId(null)} style={btnOutline()}>Cancel</button>
+              </div>
+            </form>
+          ) : (
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: `1px solid ${BORDER}` }}>
+              <div>
+                <span style={{ fontSize: 13, color: TEXT }}>{x.label}</span>
+                <div style={{ fontSize: 11, color: MUTED }}>{x.as_of_date}</div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 14, fontWeight: 700, color }}>{fmt(x.amount)}</span>
+                <button onClick={() => { setEditId(x.id); setEditForm({ label: x.label, amount: String(x.amount), as_of_date: x.as_of_date }); }} style={{ background: "none", border: "none", color: MUTED, cursor: "pointer", fontSize: 12 }}>Edit</button>
+                <button onClick={() => onDelete(x.id)} style={{ background: "none", border: "none", color: RED, cursor: "pointer", fontSize: 12 }}>Del</button>
+              </div>
+            </div>
+          )}
+        </div>
+      ))}
+      {items.length === 0 && <p style={{ color: MUTED, fontSize: 12, marginBottom: 8 }}>None added.</p>}
+    </div>
+  );
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 // BALANCE SHEET TAB
 // ══════════════════════════════════════════════════════════════════════════════
@@ -707,6 +784,7 @@ function BalanceTab({ business, bsItems, setBsItems, draws, depAssets, bizName }
   const totalDraws    = draws.reduce((s, d) => s + Number(d.amount), 0);
   const liabPlusEq    = totalLiab + totalEquity - totalDraws;
   const balanced      = Math.abs(totalAssets - liabPlusEq) < 0.01;
+  const sectionProps = { addingType, setAddingType, form, setForm, err, saving, onAdd: addItem, editId, setEditId, editForm, setEditForm, onUpdate: updateItem, onDelete: deleteItem };
 
   function exportPdf() {
     const rows: string[][] = [
@@ -729,69 +807,6 @@ function BalanceTab({ business, bsItems, setBsItems, draws, depAssets, bizName }
     pdfDoc("Balance Sheet", bizName, rows, ["Item", "Amount", "Date"]);
   }
 
-  function Section({ title, items, type, color }: { title: string; items: BSItem[]; type: "asset" | "liability" | "equity"; color: string }) {
-    const total = items.reduce((s, x) => s + Number(x.amount), 0);
-    return (
-      <div>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, color, textTransform: "uppercase" }}>{title}</span>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color }}>{fmt(total)}</span>
-            <button onClick={() => { setAddingType(type); setForm({ label: "", amount: "", as_of_date: TODAY }); }}
-              style={{ ...btnOutline(), padding: "4px 10px", fontSize: 11 }}>+ Add</button>
-          </div>
-        </div>
-        {addingType === type && (
-          <form onSubmit={addItem} style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12, padding: 12, background: BG, borderRadius: 8 }}>
-            <input type="text" placeholder="Label" value={form.label}
-              onChange={(e) => setForm({ ...form, label: e.target.value })} style={inputStyle} required />
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-              <input type="number" min="0" step="0.01" placeholder="Amount" value={form.amount}
-                onChange={(e) => setForm({ ...form, amount: e.target.value })} style={inputStyle} required />
-              <input type="date" value={form.as_of_date}
-                onChange={(e) => setForm({ ...form, as_of_date: e.target.value })} style={inputStyle} />
-            </div>
-            {err && <p style={{ color: RED, fontSize: 12, margin: 0 }}>{err}</p>}
-            <div style={{ display: "flex", gap: 8 }}>
-              <button type="submit" disabled={saving} style={btnPrimary}>{saving ? "Saving…" : "Save"}</button>
-              <button type="button" onClick={() => setAddingType(null)} style={btnOutline()}>Cancel</button>
-            </div>
-          </form>
-        )}
-        {items.map((x) => (
-          <div key={x.id}>
-            {editId === x.id ? (
-              <form onSubmit={updateItem} style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 8, padding: 10, background: BG, borderRadius: 8 }}>
-                <input type="text" value={editForm.label} onChange={(e) => setEditForm({ ...editForm, label: e.target.value })} style={inputStyle} />
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-                  <input type="number" value={editForm.amount} onChange={(e) => setEditForm({ ...editForm, amount: e.target.value })} style={inputStyle} />
-                  <input type="date" value={editForm.as_of_date} onChange={(e) => setEditForm({ ...editForm, as_of_date: e.target.value })} style={inputStyle} />
-                </div>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button type="submit" style={btnPrimary}>Save</button>
-                  <button type="button" onClick={() => setEditId(null)} style={btnOutline()}>Cancel</button>
-                </div>
-              </form>
-            ) : (
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: `1px solid ${BORDER}` }}>
-                <div>
-                  <span style={{ fontSize: 13, color: TEXT }}>{x.label}</span>
-                  <div style={{ fontSize: 11, color: MUTED }}>{x.as_of_date}</div>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ fontSize: 14, fontWeight: 700, color }}>{fmt(x.amount)}</span>
-                  <button onClick={() => { setEditId(x.id); setEditForm({ label: x.label, amount: String(x.amount), as_of_date: x.as_of_date }); }} style={{ background: "none", border: "none", color: MUTED, cursor: "pointer", fontSize: 12 }}>Edit</button>
-                  <button onClick={() => deleteItem(x.id)} style={{ background: "none", border: "none", color: RED, cursor: "pointer", fontSize: 12 }}>Del</button>
-                </div>
-              </div>
-            )}
-          </div>
-        ))}
-        {items.length === 0 && <p style={{ color: MUTED, fontSize: 12, marginBottom: 8 }}>None added.</p>}
-      </div>
-    );
-  }
-
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <div style={card}>
@@ -809,14 +824,14 @@ function BalanceTab({ business, bsItems, setBsItems, draws, depAssets, bizName }
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-          <Section title="Assets" items={assets} type="asset" color={GREEN} />
+          <BsSection title="Assets" items={assets} type="asset" color={GREEN} {...sectionProps} />
           {totalDepAccum > 0 && (
             <div style={{ fontSize: 12, color: MUTED, fontStyle: "italic", padding: "6px 0", borderTop: `1px solid ${BORDER}` }}>
               Less accumulated depreciation: ({fmt(totalDepAccum)}) → Net assets: {fmt(totalAssets)}
             </div>
           )}
-          <Section title="Liabilities" items={liabilities} type="liability" color={RED} />
-          <Section title="Equity" items={equity} type="equity" color={ACCENT} />
+          <BsSection title="Liabilities" items={liabilities} type="liability" color={RED} {...sectionProps} />
+          <BsSection title="Equity" items={equity} type="equity" color={ACCENT} {...sectionProps} />
           {draws.length > 0 && (
             <div style={{ padding: "10px 0", borderTop: `1px solid ${BORDER}` }}>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
