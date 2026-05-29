@@ -11,6 +11,7 @@ const PIERCE_EMAIL           = Deno.env.get("PIERCE_EMAIL")!;
 const FROM_EMAIL             = Deno.env.get("FROM_EMAIL") ?? "noreply@qrbooker.co";
 const SUPABASE_URL           = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const CRON_SECRET            = Deno.env.get("CRON_SECRET");
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -68,6 +69,14 @@ function detailRows(record: Record<string, unknown>, barberName: string | null):
 // ── Handler ────────────────────────────────────────────────────────────────
 
 serve(async (req) => {
+  // Validate shared secret when set
+  if (CRON_SECRET) {
+    const auth = req.headers.get("authorization") ?? "";
+    if (auth !== `Bearer ${CRON_SECRET}`) {
+      return new Response("Unauthorized", { status: 401 });
+    }
+  }
+
   let payload: { type: string; record: Record<string, unknown> };
   try {
     payload = await req.json();

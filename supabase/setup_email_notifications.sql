@@ -6,8 +6,7 @@
 --
 -- Prerequisites:
 --   • pg_net and pg_cron extensions must be enabled (Database → Extensions).
---   • Edge functions must be deployed (see deployment steps below).
---   • REPLACE <SERVICE_ROLE_KEY> and <CRON_SECRET> with real values.
+--   • Edge functions must be deployed and secrets set (see deployment checklist).
 --
 -- Run in: https://supabase.com/dashboard/project/ejxjizxftlhdpgvpyrnb/sql/new
 -- ============================================================
@@ -26,7 +25,7 @@ begin
     url     := 'https://ejxjizxftlhdpgvpyrnb.supabase.co/functions/v1/send-booking-confirmation',
     headers := jsonb_build_object(
       'Content-Type',  'application/json',
-      'Authorization', 'Bearer <SERVICE_ROLE_KEY>'
+      'Authorization', 'Bearer QRBooker2026!'
     ),
     body    := jsonb_build_object(
       'type',       'INSERT',
@@ -65,7 +64,7 @@ select cron.schedule(
     url     := 'https://ejxjizxftlhdpgvpyrnb.supabase.co/functions/v1/send-appointment-reminders',
     headers := jsonb_build_object(
       'Content-Type',  'application/json',
-      'Authorization', 'Bearer <CRON_SECRET>'
+      'Authorization', 'Bearer QRBooker2026!'
     ),
     body    := '{}'::jsonb
   );
@@ -74,20 +73,12 @@ select cron.schedule(
 
 
 -- ============================================================
--- Deployment checklist (run once from your terminal)
+-- Deployment checklist (already completed)
 -- ============================================================
--- 1. Install Supabase CLI:  npm i -g supabase
--- 2. Link project:          supabase link --project-ref ejxjizxftlhdpgvpyrnb
--- 3. Set secrets:
---      supabase secrets set \
---        SENDGRID_API_KEY="<your-sendgrid-key>" \
---        PIERCE_EMAIL="fitpaperwork25@gmail.com" \
---        FROM_EMAIL="noreply@qrbooker.co" \
---        CRON_SECRET="<generate-a-random-secret>" \
---        BUSINESS_TIMEZONE="America/New_York"
--- 4. Deploy functions:
---      supabase functions deploy send-booking-confirmation --no-verify-jwt
---      supabase functions deploy send-appointment-reminders --no-verify-jwt
--- 5. Run add_client_email.sql in the Supabase SQL editor.
--- 6. Replace <SERVICE_ROLE_KEY> and <CRON_SECRET> above, then run this file.
+-- 1. npx supabase link --project-ref ejxjizxftlhdpgvpyrnb  ✓
+-- 2. npx supabase db query --linked -f supabase/add_client_email.sql  ✓
+-- 3. npx supabase secrets set SENDGRID_API_KEY=... PIERCE_EMAIL=... etc.  ✓
+-- 4. npx supabase functions deploy send-booking-confirmation --no-verify-jwt  ✓
+-- 5. npx supabase functions deploy send-appointment-reminders --no-verify-jwt  ✓
+-- 6. Run this file in the Supabase SQL editor  ← you are here
 -- ============================================================
