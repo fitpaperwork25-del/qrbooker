@@ -107,7 +107,7 @@ export default function BookingPage() {
   const [notFound,  setNotFound]  = useState(false);
 
   const [form, setForm] = useState({
-    name: "", phone: "", service_id: "", location_id: "",
+    name: "", phone: "", email: "", service_id: "", location_id: "",
     date: localToday(), start_time: "09:00", duration: "60", notes: "",
   });
   const [saving,    setSaving]    = useState(false);
@@ -177,6 +177,7 @@ export default function BookingPage() {
       location_id:  form.location_id  || null,
       client_name:  form.name.trim(),
       client_phone: form.phone.trim() || null,
+      client_email: form.email.trim() || null,
       service_id:   form.service_id   || null,
       service_name: svc?.name         || null,
       date:         form.date,
@@ -249,8 +250,14 @@ export default function BookingPage() {
             ))}
           </div>
 
+          {form.email && (
+            <p style={{ color: MUTED, fontSize: 13, textAlign: "center", margin: 0 }}>
+              A confirmation email is on its way to <span style={{ color: TEXT }}>{form.email}</span>.
+            </p>
+          )}
+
           <button
-            onClick={() => { setConfirmed(false); setForm(f => ({ ...f, name: "", phone: "", notes: "", service_id: "", location_id: "" })); }}
+            onClick={() => { setConfirmed(false); setForm(f => ({ ...f, name: "", phone: "", email: "", notes: "", service_id: "", location_id: "" })); }}
             style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 12, padding: "15px", color: MUTED, fontSize: 15, cursor: "pointer", width: "100%" }}>
             Book another appointment
           </button>
@@ -356,6 +363,15 @@ export default function BookingPage() {
               <label style={lbl}>Phone number</label>
               <input type="tel" autoComplete="tel" placeholder="+1 555 0100"
                 value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+                style={inp} />
+            </div>
+
+            {/* Email */}
+            <div style={field}>
+              <label style={lbl}>Email</label>
+              <input type="email" autoComplete="email"
+                placeholder="Email (optional — get confirmation & reminders)"
+                value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
                 style={inp} />
             </div>
 
