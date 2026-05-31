@@ -15,6 +15,7 @@ import StaffDashboardPage from "./pages/StaffDashboardPage";
 import StaffLoginPage from "./pages/StaffLoginPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
+import DemoDashboardPage from "./pages/DemoDashboardPage";
 
 // Placeholders — replace with real pages as they are built
 const Placeholder = ({ name }: { name: string }) => (
@@ -43,6 +44,7 @@ export default function App() {
       <Route path="/scan/:bizSlug" element={<ScanLandingPage />} />
       <Route path="/scan/:bizId/:locationId" element={<ScanPage />} />
       <Route path="/book/:slug" element={<BookingPage />} />
+      <Route path="/demo" element={<DemoDashboardPage />} />
 
       {/* Owner-protected */}
       <Route
