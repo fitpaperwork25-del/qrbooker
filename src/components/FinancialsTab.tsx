@@ -10,7 +10,7 @@ type MenuItem  = { id: string; name: string; price: number };
 
 type Appointment = {
   id: string; location_id: string | null; service_name: string | null;
-  date: string; status: string;
+  service_id: string | null; date: string; status: string;
 };
 type Expense = { id: string; amount: number; category: string; description: string | null; expense_date: string };
 type BSItem  = { id: string; type: string; label: string; amount: number; as_of_date: string };
@@ -46,6 +46,13 @@ function calcDepreciation(asset: DepAsset) {
 
 function fmt(n: number) { return `$${Math.abs(n).toFixed(2)}`; }
 function fmtSigned(n: number) { return `${n < 0 ? "-" : "+"}$${Math.abs(n).toFixed(2)}`; }
+
+function apptRevenue(appts: Appointment[], items: MenuItem[]): number {
+  return appts.reduce((s, a) => {
+    const item = a.service_id ? items.find(m => m.id === a.service_id) : undefined;
+    return s + (item ? Number(item.price) : 0);
+  }, 0);
+}
 
 function downloadCsv(filename: string, rows: string[][]) {
   const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
@@ -170,7 +177,7 @@ export function FinancialsTab({ business, locations, menuItems }: {
 
       const [apptRes, expRes, bsRes, drawRes, depRes] = await Promise.all([
         supabase.from("appointments")
-          .select("id, location_id, service_name, date, status")
+          .select("id, location_id, service_name, service_id, date, status")
           .eq("business_id", business.id)
           .gte("date", ninetyDaysAgo)
           .order("date", { ascending: false }),
@@ -219,12 +226,12 @@ export function FinancialsTab({ business, locations, menuItems }: {
         ))}
       </div>
 
-      {finTab === "overview"     && <OverviewTab appointments={appointments} expenses={expenses} draws={draws} depAssets={depAssets} locations={locations} />}
+      {finTab === "overview"     && <OverviewTab appointments={appointments} expenses={expenses} draws={draws} depAssets={depAssets} locations={locations} menuItems={menuItems} />}
       {finTab === "transactions" && <TransactionsTab business={business} expenses={expenses} setExpenses={setExpenses} draws={draws} setDraws={setDraws} />}
       {finTab === "balance"      && <BalanceTab business={business} bsItems={bsItems} setBsItems={setBsItems} draws={draws} depAssets={depAssets} bizName={business.name} />}
       {finTab === "depreciation" && <DepreciationTab business={business} depAssets={depAssets} setDepAssets={setDepAssets} expenses={expenses} setExpenses={setExpenses} />}
-      {finTab === "taxes"        && <TaxesTab appointments={appointments} expenses={expenses} draws={draws} depAssets={depAssets} />}
-      {finTab === "reports"      && <ReportsTab appointments={appointments} expenses={expenses} draws={draws} depAssets={depAssets} locations={locations} bizName={business.name} />}
+      {finTab === "taxes"        && <TaxesTab appointments={appointments} expenses={expenses} draws={draws} depAssets={depAssets} menuItems={menuItems} />}
+      {finTab === "reports"      && <ReportsTab appointments={appointments} expenses={expenses} draws={draws} depAssets={depAssets} locations={locations} bizName={business.name} menuItems={menuItems} />}
     </div>
   );
 }
@@ -232,9 +239,9 @@ export function FinancialsTab({ business, locations, menuItems }: {
 // ══════════════════════════════════════════════════════════════════════════════
 // OVERVIEW TAB
 // ══════════════════════════════════════════════════════════════════════════════
-function OverviewTab({ appointments, expenses, draws, depAssets, locations }: {
+function OverviewTab({ appointments, expenses, draws, depAssets, locations, menuItems }: {
   appointments: Appointment[]; expenses: Expense[]; draws: Draw[];
-  depAssets: DepAsset[]; locations: Location[];
+  depAssets: DepAsset[]; locations: Location[]; menuItems: MenuItem[];
 }) {
   const now       = new Date();
   const todayStr  = now.toISOString().slice(0, 10);
@@ -273,13 +280,10 @@ function OverviewTab({ appointments, expenses, draws, depAssets, locations }: {
   });
   const busiestDay = Object.entries(dayCount).sort((a, b) => b[1] - a[1])[0];
 
-  // Revenue calcs — using appointment count * avg service price as proxy
-  // (no orders table integration needed — appointments drive revenue display)
-  const avgServicePrice = menuItems_avg(appointments);
   const thisMonthAppts  = appointments.filter((a) => a.date >= thisMonthStart && a.status !== "cancelled" && a.status !== "no_show");
   const lastMonthAppts  = appointments.filter((a) => a.date >= lastMonthStart && a.date <= lastMonthEnd && a.status !== "cancelled" && a.status !== "no_show");
-  const thisMonthRev    = thisMonthAppts.length * avgServicePrice;
-  const lastMonthRev    = lastMonthAppts.length * avgServicePrice;
+  const thisMonthRev    = apptRevenue(thisMonthAppts, menuItems);
+  const lastMonthRev    = apptRevenue(lastMonthAppts, menuItems);
   const revChange       = lastMonthRev > 0 ? ((thisMonthRev - lastMonthRev) / lastMonthRev * 100) : 0;
 
   const thisMonthExp    = expenses.filter((e) => e.expense_date >= thisMonthStart).reduce((s, e) => s + Number(e.amount), 0);
@@ -435,14 +439,6 @@ function OverviewTab({ appointments, expenses, draws, depAssets, locations }: {
       </div>
     </div>
   );
-}
-
-// avg service price — uses appointment service_name to look up price; fallback to 35
-function menuItems_avg(appointments: Appointment[]): number {
-  // We can't access menuItems directly here without prop drilling, so use $35 fallback
-  // (the Overview KPIs are directional, not accounting-grade)
-  void appointments;
-  return 35;
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -1010,15 +1006,14 @@ function DepreciationTab({ business, depAssets, setDepAssets, expenses, setExpen
 // ══════════════════════════════════════════════════════════════════════════════
 // TAXES TAB
 // ══════════════════════════════════════════════════════════════════════════════
-function TaxesTab({ appointments, expenses, draws, depAssets }: {
-  appointments: Appointment[]; expenses: Expense[]; draws: Draw[]; depAssets: DepAsset[];
+function TaxesTab({ appointments, expenses, draws, depAssets, menuItems }: {
+  appointments: Appointment[]; expenses: Expense[]; draws: Draw[]; depAssets: DepAsset[]; menuItems: MenuItem[];
 }) {
   const now         = new Date();
   const yearStart   = `${now.getFullYear()}-01-01`;
 
-  // YTD revenue proxy: done appointments × $35 avg
   const ytdAppts    = appointments.filter((a) => a.date >= yearStart && a.status !== "cancelled" && a.status !== "no_show");
-  const ytdRevenue  = ytdAppts.length * 35;
+  const ytdRevenue  = apptRevenue(ytdAppts, menuItems);
 
   // YTD expenses
   const ytdExp      = expenses.filter((e) => e.expense_date >= yearStart).reduce((s, e) => s + Number(e.amount), 0);
@@ -1054,7 +1049,7 @@ function TaxesTab({ appointments, expenses, draws, depAssets }: {
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       {/* Disclaimer */}
       <div style={{ padding: "10px 14px", borderRadius: 8, background: ACCENT + "11", border: `1px solid ${ACCENT}33`, fontSize: 12, color: MUTED }}>
-        Estimates only — consult a tax professional. Revenue is estimated at $35/appointment. MN has 0% sales tax on haircuts.
+        Estimates only — consult a tax professional. Revenue is based on service prices recorded at booking time. MN has 0% sales tax on haircuts.
       </div>
 
       {/* YTD summary */}
@@ -1122,9 +1117,9 @@ function TaxesTab({ appointments, expenses, draws, depAssets }: {
 // ══════════════════════════════════════════════════════════════════════════════
 // REPORTS TAB
 // ══════════════════════════════════════════════════════════════════════════════
-function ReportsTab({ appointments, expenses, draws, depAssets, locations, bizName }: {
+function ReportsTab({ appointments, expenses, draws, depAssets, locations, bizName, menuItems }: {
   appointments: Appointment[]; expenses: Expense[]; draws: Draw[];
-  depAssets: DepAsset[]; locations: Location[]; bizName: string;
+  depAssets: DepAsset[]; locations: Location[]; bizName: string; menuItems: MenuItem[];
 }) {
   const [period, setPeriod] = useState<"month" | "quarter" | "year">("month");
   const now = new Date();
@@ -1148,7 +1143,7 @@ function ReportsTab({ appointments, expenses, draws, depAssets, locations, bizNa
 
   const periodAppts  = appointments.filter((a) => a.date >= startDate && a.date <= endDate && a.status !== "cancelled" && a.status !== "no_show");
   const periodExp    = expenses.filter((e) => e.expense_date >= startDate && e.expense_date <= endDate);
-  const revenue      = periodAppts.length * 35;
+  const revenue      = apptRevenue(periodAppts, menuItems);
   const totalExp     = periodExp.reduce((s, e) => s + Number(e.amount), 0);
 
   // Monthly depreciation expense for the period
@@ -1164,10 +1159,13 @@ function ReportsTab({ appointments, expenses, draws, depAssets, locations, bizNa
 
   // By barber
   const byBarber: Record<string, number> = {};
+  const byBarberRev: Record<string, number> = {};
   periodAppts.forEach((a) => {
     const loc = locations.find((l) => l.id === a.location_id);
     const name = loc?.label || loc?.name || "Unknown";
     byBarber[name] = (byBarber[name] ?? 0) + 1;
+    const item = a.service_id ? menuItems.find(m => m.id === a.service_id) : undefined;
+    byBarberRev[name] = (byBarberRev[name] ?? 0) + (item ? Number(item.price) : 0);
   });
 
   // Draws in period
@@ -1177,7 +1175,7 @@ function ReportsTab({ appointments, expenses, draws, depAssets, locations, bizNa
   function exportPnLCsv() {
     const rows: string[][] = [
       ["Type", "Description", "Amount"],
-      ["Revenue", `Appointments (${periodAppts.length} × $35 est.)`, revenue.toFixed(2)],
+      ["Revenue", `Appointments (${periodAppts.length} services)`, revenue.toFixed(2)],
       ["TOTAL REVENUE", "", revenue.toFixed(2)],
       ...Object.entries(expByCat).map(([cat, amt]) => ["Expense", cat, (-amt).toFixed(2)]),
       ["TOTAL EXPENSES", "", (-totalExp - depExp).toFixed(2)],
@@ -1188,7 +1186,7 @@ function ReportsTab({ appointments, expenses, draws, depAssets, locations, bizNa
 
   function exportPnLPdf() {
     const rows: string[][] = [
-      ["Revenue", `Appointments (${periodAppts.length} × $35 est.)`, fmt(revenue)],
+      ["Revenue", `Appointments (${periodAppts.length} services)`, fmt(revenue)],
       ["TOTAL REVENUE", "", fmt(revenue)],
       ...Object.entries(expByCat).map(([cat, amt]) => ["Expense", cat, fmt(amt)]),
       ["TOTAL EXPENSES", "", fmt(totalExp + depExp)],
@@ -1219,8 +1217,8 @@ function ReportsTab({ appointments, expenses, draws, depAssets, locations, bizNa
 
   function exportBarberCsv() {
     const rows: string[][] = [
-      ["Barber", "Appointments", "Est. Revenue"],
-      ...Object.entries(byBarber).sort((a, b) => b[1] - a[1]).map(([name, cnt]) => [name, String(cnt), fmt(cnt * 35)]),
+      ["Barber", "Appointments", "Revenue"],
+      ...Object.entries(byBarber).sort((a, b) => b[1] - a[1]).map(([name, cnt]) => [name, String(cnt), fmt(byBarberRev[name] ?? 0)]),
       ["TOTAL", String(periodAppts.length), fmt(revenue)],
     ];
     downloadCsv(`revenue_per_barber_${period}`, rows);
@@ -1229,7 +1227,7 @@ function ReportsTab({ appointments, expenses, draws, depAssets, locations, bizNa
   function exportCashFlowCsv() {
     const rows: string[][] = [
       ["Type", "Description", "Date", "Amount"],
-      ["Inflow", `Est. appointment revenue (${periodAppts.length} appts)`, startDate, revenue.toFixed(2)],
+      ["Inflow", `Appointment revenue (${periodAppts.length} appts)`, startDate, revenue.toFixed(2)],
       ...periodExp.map((e) => ["Outflow", `${e.category}${e.description ? " — " + e.description : ""}`, e.expense_date, (-Number(e.amount)).toFixed(2)]),
       ...periodDraws.map((d) => ["Outflow (Draw)", d.description || "Owner Draw", d.draw_date, (-Number(d.amount)).toFixed(2)]),
       ["NET CASH FLOW", "", "", (revenue - totalExp - totalDraws).toFixed(2)],
@@ -1259,7 +1257,7 @@ function ReportsTab({ appointments, expenses, draws, depAssets, locations, bizNa
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
           <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: `1px solid ${BORDER}` }}>
-            <span style={{ fontSize: 13, color: TEXT }}>Revenue ({periodAppts.length} appts × $35 est.)</span>
+            <span style={{ fontSize: 13, color: TEXT }}>Revenue ({periodAppts.length} appointments)</span>
             <span style={{ fontSize: 13, fontWeight: 700, color: GREEN }}>{fmt(revenue)}</span>
           </div>
           {Object.entries(expByCat).map(([cat, amt]) => (
@@ -1314,7 +1312,7 @@ function ReportsTab({ appointments, expenses, draws, depAssets, locations, bizNa
           Object.entries(byBarber).sort((a, b) => b[1] - a[1]).map(([name, cnt]) => (
             <div key={name} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${BORDER}` }}>
               <span style={{ fontSize: 13, color: TEXT }}>{name}</span>
-              <span style={{ fontSize: 13, color: MUTED }}>{cnt} appts · <span style={{ color: GREEN, fontWeight: 700 }}>{fmt(cnt * 35)} est.</span></span>
+              <span style={{ fontSize: 13, color: MUTED }}>{cnt} appts · <span style={{ color: GREEN, fontWeight: 700 }}>{fmt(byBarberRev[name] ?? 0)}</span></span>
             </div>
           ))
         )}
