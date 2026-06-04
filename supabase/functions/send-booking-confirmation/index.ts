@@ -6,7 +6,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const SENDGRID_API_KEY       = Deno.env.get("SENDGRID_API_KEY")!;
+const RESEND_API_KEY          = Deno.env.get("RESEND_API_KEY")!;
 const PIERCE_EMAIL           = Deno.env.get("PIERCE_EMAIL")!;
 const FROM_EMAIL             = Deno.env.get("FROM_EMAIL") ?? "noreply@qrbooker.co";
 const SUPABASE_URL           = Deno.env.get("SUPABASE_URL")!;
@@ -16,22 +16,22 @@ const CRON_SECRET            = Deno.env.get("CRON_SECRET");
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 async function sendEmail(to: string, subject: string, html: string): Promise<void> {
-  const res = await fetch("https://api.sendgrid.com/v3/mail/send", {
+  const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${SENDGRID_API_KEY}`,
+      Authorization: `Bearer ${RESEND_API_KEY}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      personalizations: [{ to: [{ email: to }] }],
-      from: { email: FROM_EMAIL, name: "BarberShop 21" },
+      from:    `BarberShop 21 <${FROM_EMAIL}>`,
+      to:      [to],
       subject,
-      content: [{ type: "text/html", value: html }],
+      html,
     }),
   });
   if (!res.ok) {
     const body = await res.text();
-    console.error(`SendGrid ${res.status}: ${body}`);
+    console.error(`Resend ${res.status}: ${body}`);
   }
 }
 
