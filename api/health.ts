@@ -54,6 +54,13 @@ async function checkAuthentication(): Promise<CheckResult> {
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const startedAt = Date.now();
 
+  // Health status only, no user/business data — safe to expose to any
+  // origin so Platform Admin's browser-side Health Engine can read it
+  // (a bare fetch() without this header is opaque to the browser and
+  // surfaces as a generic "Failed to fetch", even though the server
+  // responded successfully).
+  res.setHeader("Access-Control-Allow-Origin", "*");
+
   // The handler executing at all is the API health signal.
   const api: CheckResult = { status: "ok" };
   const [database, authentication] = await Promise.all([checkDatabase(), checkAuthentication()]);
