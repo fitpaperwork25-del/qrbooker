@@ -14,6 +14,20 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 // hardcoded browser session's JWT email (RAISE EXCEPTION unless
 // auth.jwt()->>'email' matches) and is not reusable for a service-role,
 // server-to-server call with no user session.
+//
+// Business Lookup (Platform Admin's AI Command Center Live Data
+// Tools): an optional ?businessName= query param switches this same
+// endpoint to a single-business, name-and-email-only lookup — same
+// shared contract as the QR-Wegn and Wegn Store adapters (GET,
+// ?businessName=, { business: { name, email } | null, generatedAt }).
+// Kept in this file rather than a new endpoint, same reasoning as
+// every other cross-project admin integration: one more Vercel
+// function slot isn't worth it for what is structurally the same
+// "shared-secret, service-role, read-only" call. email isn't a direct
+// column here (unlike Wegn Store) — it's looked up via the owner's
+// Auth Admin record, same as the QR-Wegn adapter, since businesses
+// only has owner_id. This never selects staff_pin, stripe ids, or any
+// other admin_setup_v2.sql field.
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -39,9 +53,44 @@ interface BusinessRow {
   created_at: string;
 }
 
+interface BusinessNameRow {
+  name: string;
+  owner_id: string;
+}
+
 function getSharedSecretHeader(req: VercelRequest): string | null {
   const header = req.headers["x-booker-admin-secret"];
   return typeof header === "string" ? header : null;
+}
+
+async function handleBusinessLookup(supabase: SupabaseClient, businessName: string, res: VercelResponse) {
+  try {
+    const { data, error } = await supabase
+      .from("businesses")
+      .select("name, owner_id")
+      .neq("type", "platform")
+      .ilike("name", businessName)
+      .limit(1)
+      .maybeSingle();
+
+    if (error) throw error;
+
+    if (!data) {
+      res.status(200).json({ business: null, generatedAt: new Date().toISOString() });
+      return;
+    }
+
+    const row = data as BusinessNameRow;
+    const { data: userData, error: userError } = await supabase.auth.admin.getUserById(row.owner_id);
+    if (userError) throw userError;
+
+    res.status(200).json({
+      business: { name: row.name, email: userData.user?.email ?? null },
+      generatedAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : "Internal error" });
+  }
 }
 
 async function loadBusinessCounts(
@@ -95,9 +144,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  try {
-    const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
+  const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
 
+  const businessName = typeof req.query.businessName === "string" ? req.query.businessName.trim() : "";
+  if (businessName) {
+    return handleBusinessLookup(supabase, businessName, res);
+  }
+
+  try {
     // "platform" is an internal/demo business type — excluded from the
     // client-facing list, same convention as get_admin_businesses().
     const { data: businesses, error } = await supabase
