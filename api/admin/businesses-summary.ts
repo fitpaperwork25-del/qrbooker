@@ -17,21 +17,31 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 //
 // Business Lookup (Platform Admin's AI Command Center Live Data
 // Tools): an optional ?businessName= query param switches this same
-// endpoint to a single-business, name-and-email-only lookup — same
-// shared contract as the QR-Wegn and Wegn Store adapters (GET,
-// ?businessName=, { business: { name, email } | null, generatedAt }).
-// Kept in this file rather than a new endpoint, same reasoning as
-// every other cross-project admin integration: one more Vercel
-// function slot isn't worth it for what is structurally the same
-// "shared-secret, service-role, read-only" call. email isn't a direct
-// column here (unlike Wegn Store) — it's looked up via the owner's
-// Auth Admin record, same as the QR-Wegn adapter, since businesses
-// only has owner_id. This never selects staff_pin, stripe ids, or any
-// other admin_setup_v2.sql field.
+// endpoint to a name-and-email-only lookup — same shared contract as
+// the QR-Wegn and Wegn Store adapters (GET, ?businessName=,
+// { matches: { name, email }[], generatedAt }). Kept in this file
+// rather than a new endpoint, same reasoning as every other
+// cross-project admin integration: one more Vercel function slot isn't
+// worth it for what is structurally the same "shared-secret,
+// service-role, read-only" call. email isn't a direct column here
+// (unlike Wegn Store) — it's looked up via the owner's Auth Admin
+// record, same as the QR-Wegn adapter, since businesses only has
+// owner_id. This never selects staff_pin, stripe ids, or any other
+// admin_setup_v2.sql field.
+//
+// Matching is case-insensitive and partial (ilike with wildcards) —
+// production testing found the original exact-match query silently
+// reported "no match" for a real business. Capped at MATCH_LIMIT rows:
+// 0 means no match, exactly 1 means a confident unique match, more
+// than 1 means the name was ambiguous — Platform Admin's own
+// orchestrator decides what to do with each case; this endpoint never
+// guesses on its own.
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const sharedSecret = process.env.BOOKER_ADMIN_SHARED_SECRET;
+
+const MATCH_LIMIT = 5;
 
 interface BusinessSummary {
   id: string;
@@ -69,25 +79,21 @@ async function handleBusinessLookup(supabase: SupabaseClient, businessName: stri
       .from("businesses")
       .select("name, owner_id")
       .neq("type", "platform")
-      .ilike("name", businessName)
-      .limit(1)
-      .maybeSingle();
+      .ilike("name", `%${businessName}%`)
+      .limit(MATCH_LIMIT);
 
     if (error) throw error;
 
-    if (!data) {
-      res.status(200).json({ business: null, generatedAt: new Date().toISOString() });
-      return;
-    }
+    const rows = (data ?? []) as BusinessNameRow[];
+    const matches = await Promise.all(
+      rows.map(async (row) => {
+        const { data: userData, error: userError } = await supabase.auth.admin.getUserById(row.owner_id);
+        if (userError) throw userError;
+        return { name: row.name, email: userData.user?.email ?? null };
+      })
+    );
 
-    const row = data as BusinessNameRow;
-    const { data: userData, error: userError } = await supabase.auth.admin.getUserById(row.owner_id);
-    if (userError) throw userError;
-
-    res.status(200).json({
-      business: { name: row.name, email: userData.user?.email ?? null },
-      generatedAt: new Date().toISOString(),
-    });
+    res.status(200).json({ matches, generatedAt: new Date().toISOString() });
   } catch (err) {
     res.status(500).json({ error: err instanceof Error ? err.message : "Internal error" });
   }
