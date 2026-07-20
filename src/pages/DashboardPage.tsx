@@ -5,6 +5,8 @@ import { supabase } from "../lib/supabase";
 import { ACCENT, BG, BORDER, MUTED, SURFACE, TEXT, GREEN, RED } from "../constants/theme";
 import { AppointmentCalendar } from "../components/AppointmentCalendar";
 import { FinancialsTab } from "../components/FinancialsTab";
+import { registerBusinessWithWsms, checkSubscription } from "../lib/wsms/subscriptionClient";
+import { deriveSubscriptionBanner, type SubscriptionBanner } from "../lib/wsms/subscriptionBanner";
 
 type Business = {
   id: string; name: string; type: string; plan: string;
@@ -78,6 +80,9 @@ export default function DashboardPage() {
   const [pinSaving, setPinSaving] = useState(false);
   const [pinError,  setPinError]  = useState("");
   const [pinSaved,  setPinSaved]  = useState(false);
+
+  const [subscriptionBanner, setSubscriptionBanner] = useState<SubscriptionBanner | null>(null);
+  const [subscriptionNoticeDismissed, setSubscriptionNoticeDismissed] = useState(false);
 
   const [addingCat, setAddingCat]   = useState(false);
   const [newCatName, setNewCatName] = useState("");
@@ -196,6 +201,9 @@ export default function DashboardPage() {
             plan: "starter", subscription_status: "trialing",
           }).select("*").single();
           biz = created as Business | null;
+          // Fire-and-forget — a WSMS failure must never block this
+          // fallback flow. See src/lib/wsms/subscriptionClient.ts.
+          if (biz) void registerBusinessWithWsms(biz.id);
         } catch { /* ignore - fall through to no-business UI */ }
         localStorage.removeItem("qw_pending_registration");
       }
@@ -223,6 +231,33 @@ export default function DashboardPage() {
     }
     setLoading(false);
   }
+
+  // WSMS integration. Checks once when the business loads, then
+  // re-checks if the tab is reopened/refocused after being stale for
+  // more than 12 hours - not on every render. See
+  // docs/WSMS_PRODUCT_INTEGRATION_PATTERN.md - this mirrors
+  // wegn-store-app's entitlement-check pattern exactly.
+  useEffect(() => {
+    if (!business?.id) return;
+    const SUBSCRIPTION_STALE_MS = 12 * 60 * 60 * 1000;
+    let lastCheckedAt = 0;
+
+    async function runCheck() {
+      lastCheckedAt = Date.now();
+      const result = await checkSubscription(business!.id);
+      setSubscriptionBanner(deriveSubscriptionBanner(result));
+      setSubscriptionNoticeDismissed(false);
+    }
+    void runCheck();
+
+    function handleVisibilityChange() {
+      if (document.visibilityState !== "visible") return;
+      if (Date.now() - lastCheckedAt < SUBSCRIPTION_STALE_MS) return;
+      void runCheck();
+    }
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [business?.id]);
 
   async function addTable(e: React.FormEvent) {
     e.preventDefault();
@@ -677,6 +712,19 @@ export default function DashboardPage() {
       </nav>
 
       <div style={{ maxWidth: 960, margin: "0 auto", padding: isMobile ? "20px 16px" : "36px 24px", display: "flex", flexDirection: "column", gap: 28 }}>
+
+        {subscriptionBanner && !subscriptionNoticeDismissed && (
+          <div style={{
+            padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px",
+            background: subscriptionBanner.tone === "danger" ? "#2a1414" : subscriptionBanner.tone === "warning" ? "#2a2414" : "#14202a",
+            color: subscriptionBanner.tone === "danger" ? "#f44336" : subscriptionBanner.tone === "warning" ? "#E8C547" : "#5b9bd5",
+            border: `1px solid ${subscriptionBanner.tone === "danger" ? "#f4433644" : subscriptionBanner.tone === "warning" ? "#E8C54744" : "#5b9bd544"}`,
+            borderRadius: "8px", fontSize: "14px",
+          }}>
+            <span>{subscriptionBanner.message}</span>
+            <button onClick={() => setSubscriptionNoticeDismissed(true)} style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", fontSize: "13px", textDecoration: "underline", whiteSpace: "nowrap" }}>Dismiss</button>
+          </div>
+        )}
 
         {/* Setup checklist */}
         {!allDone && (

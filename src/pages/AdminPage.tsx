@@ -3,6 +3,7 @@ import QRCode from "qrcode";
 import { useAuth } from "../lib/useAuth";
 import { supabase } from "../lib/supabase";
 import { printBrotherLabels } from "../utils/brotherPrint";
+import { registerBusinessWithWsms } from "../lib/wsms/subscriptionClient";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const SUPER_ADMIN = "fitpaperwork25@gmail.com";
@@ -673,10 +674,13 @@ export default function AdminPage() {
     if (!userRes.ok) { setNewClientError(userData.error ?? "User creation failed"); setCreatingClient(false); return; }
 
     // 2. Create business via SECURITY DEFINER RPC
-    const { error: bizErr } = await supabase.rpc("admin_create_business", {
+    const { data: newBusinessId, error: bizErr } = await supabase.rpc("admin_create_business", {
       p_owner_id: userData.user_id, p_name: name, p_slug: slug, p_type: type, p_pin: pin,
     });
     if (bizErr) { setNewClientError(bizErr.message); setCreatingClient(false); return; }
+    // Fire-and-forget — a WSMS failure must never block admin onboarding.
+    // See src/lib/wsms/subscriptionClient.ts.
+    if (newBusinessId) void registerBusinessWithWsms(newBusinessId);
 
     setShowNewClient(false);
     setNewClient({ name: "", slug: "", type: "restaurant", email: "", password: "", pin: "1234" });

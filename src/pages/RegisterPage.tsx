@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
+import { registerBusinessWithWsms } from "../lib/wsms/subscriptionClient";
 
 const ACCENT = "#E8C547";
 const BG = "#080808";
@@ -72,19 +73,22 @@ export default function RegisterPage() {
 
   async function insertBusiness(userId: string) {
     const slug = slugify(form.businessName) || `business-${Date.now()}`;
-    const { error: bizError } = await supabase.from("businesses").insert({
+    const { data: newBusiness, error: bizError } = await supabase.from("businesses").insert({
       owner_id:            userId,
       name:                form.businessName.trim(),
       slug,
       type:                form.type,
       plan:                "starter",
       subscription_status: "trialing",
-    });
+    }).select("id").single();
     if (bizError) {
       setError(bizError.message);
       setLoading(false);
       return;
     }
+    // Fire-and-forget — a WSMS failure must never block signup. See
+    // src/lib/wsms/subscriptionClient.ts.
+    if (newBusiness) void registerBusinessWithWsms(newBusiness.id);
 
     // Fire welcome email — best-effort, don't block navigation
     fetch("/api/send-welcome", {
