@@ -22,3 +22,10 @@ npm-debug.log*
 Thumbs.db
 .vercel
 .env*.local
+
+# Supabase CLI local state - this repo and QRWegn's fork of it once
+# had the wrong project ref checked in here, which pointed `supabase
+# db query --linked` at QRWegn's database instead of QRBooker's. This
+# is ephemeral CLI cache, never meant to be committed - see wegn-wsms's
+# .gitignore for the same fix, applied there first.
+supabase/.temp/
