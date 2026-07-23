@@ -63,12 +63,25 @@ export async function checkSubscription(businessId: string): Promise<Subscriptio
  * design at every call site - a failure here must never block business
  * creation, which has already succeeded by the time this is called.
  * Never throws.
+ *
+ * Sprint 3B Phase 1: wegnAccountId is optional - pass it only when the
+ * caller already has one on hand (e.g. from a just-resolved
+ * linkIdentityAccount() call in the SAME action, for the SAME person
+ * who owns the business being registered). Omit it whenever that isn't
+ * true - see docs/WSMS_IDENTITY_RELATIONSHIP_DECISION.md (qrwegn repo).
+ * No existing call site in this repo supplies it yet: AdminPage.tsx's
+ * call registers a business on behalf of a DIFFERENT, just-created user
+ * who has never logged in, so the calling super-admin's own
+ * wegnAccountId would misattribute ownership if passed here; neither
+ * RegisterPage.tsx nor DashboardPage.tsx's fallback path currently has
+ * a fresh wegnAccountId available (identity linking only fires from
+ * LoginPage.tsx today). Every existing call keeps working unchanged.
  */
-export async function registerBusinessWithWsms(businessId: string): Promise<void> {
+export async function registerBusinessWithWsms(businessId: string, wegnAccountId?: string | null): Promise<void> {
   try {
-    const { error } = await supabase.functions.invoke("register-with-wsms", {
-      body: { businessId },
-    });
+    const body: { businessId: string; wegnAccountId?: string } = { businessId };
+    if (wegnAccountId) body.wegnAccountId = wegnAccountId;
+    const { error } = await supabase.functions.invoke("register-with-wsms", { body });
     if (error) console.error("[registerBusinessWithWsms] registration failed (non-blocking):", error);
   } catch (err) {
     console.error("[registerBusinessWithWsms] registration failed (non-blocking):", err);

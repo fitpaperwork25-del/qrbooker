@@ -30,6 +30,13 @@ import { verifyAuth } from "../_shared/verifyAuth.ts";
  * everyone, the super-admin's email is allowed as a second, explicit
  * path to the SAME lookup - still filtered by id, still a real
  * database check, never a bypass of ownership verification itself.
+ *
+ * Sprint 3B Phase 1: also accepts an optional wegnAccountId, forwarded
+ * to WSMS's self-register-subscription unchanged - this function never
+ * validates or interprets it beyond basic type-checking, WSMS owns that
+ * (format validation, conflict handling). Never required; a missing or
+ * absent value never affects registration. See
+ * docs/WSMS_IDENTITY_RELATIONSHIP_DECISION.md (qrwegn repo).
  */
 const SUPER_ADMIN_EMAIL = "fitpaperwork25@gmail.com";
 
@@ -72,7 +79,7 @@ serve(async (req: Request) => {
     return jsonResponse({ error: "Not authenticated" }, 401);
   }
 
-  let body: { businessId?: string };
+  let body: { businessId?: string; wegnAccountId?: string };
   try {
     body = await req.json();
   } catch {
@@ -80,6 +87,9 @@ serve(async (req: Request) => {
   }
   const businessId = typeof body.businessId === "string" ? body.businessId : "";
   if (!businessId) return jsonResponse({ error: "businessId is required" }, 400);
+  // Passed through as-is - WSMS is the one place format/conflict rules
+  // for this value live (see self-register-subscription's own header).
+  const wegnAccountId = typeof body.wegnAccountId === "string" && body.wegnAccountId ? body.wegnAccountId : undefined;
 
   // Ownership check - see header comment. id alone is not sufficient
   // because businesses is publicly readable. The super-admin exception
@@ -103,6 +113,7 @@ serve(async (req: Request) => {
         secret: wsmsSecret,
         externalBusinessId: business.id,
         businessDisplayName: business.name,
+        ...(wegnAccountId ? { wegnAccountId } : {}),
       }),
     });
     const wsmsBody = await wsmsRes.json().catch(() => ({}));
