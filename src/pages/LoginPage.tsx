@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../lib/useAuth";
+import { linkIdentityAccount } from "../lib/identity/identityClient";
 import { ACCENT, BG, BORDER, TEXT, MUTED, RED } from "../constants/theme";
 
 const inputStyle: React.CSSProperties = {
@@ -65,6 +66,12 @@ export default function LoginPage() {
       return;
     }
 
+    // Sprint 3A: the standalone owner login only - see
+    // src/lib/identity/identityClient.ts. Not called from
+    // StaffLoginPage.tsx's PIN-based staffLogin(), which is a
+    // structurally separate authentication path.
+    void linkIdentityAccount();
+
     const dest =
       email.trim().toLowerCase() === "fitpaperwork25@gmail.com"
         ? "/admin"
@@ -91,6 +98,7 @@ export default function LoginPage() {
         );
         setLoading(false);
       } else {
+        void linkIdentityAccount();
         navigate(from, { replace: true });
       }
     });
