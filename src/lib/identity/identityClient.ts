@@ -33,3 +33,33 @@ export async function linkIdentityAccount(): Promise<{ wegnAccountId: string | n
     return { wegnAccountId: null };
   }
 }
+
+/**
+ * Cross-product signup Phase A / Phase C stub: registers the caller's
+ * own business with WEGN Identity's canonical Business Registry (see
+ * supabase/functions/register-business-with-identity/index.ts, new in
+ * this repo, mirroring qrwegn's and wegn-store-app's own versions). This
+ * is what makes a business appear in WEGN Home's portfolio.
+ *
+ * PHASE C PLACEHOLDER - see register-business-with-identity's own
+ * header comment: this is currently called automatically from
+ * RegisterPage.tsx, immediately after linkIdentityAccount() resolves a
+ * wegnAccountId - not from any explicit owner-confirmation UI, because
+ * none exists yet. Move the call site behind such a UI if a future
+ * decision requires it.
+ */
+export async function registerBusinessWithIdentity(businessId: string): Promise<{ ok: boolean; wegnBusinessId: string | null }> {
+  try {
+    const { data, error } = await supabase.functions.invoke("register-business-with-identity", {
+      body: { businessId },
+    });
+    if (error) {
+      console.error("[registerBusinessWithIdentity] link failed (non-blocking):", error);
+      return { ok: false, wegnBusinessId: null };
+    }
+    return { ok: !!data?.ok, wegnBusinessId: data?.wegnBusinessId ?? null };
+  } catch (err) {
+    console.error("[registerBusinessWithIdentity] link failed (non-blocking):", err);
+    return { ok: false, wegnBusinessId: null };
+  }
+}

@@ -2,6 +2,12 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { registerBusinessWithWsms } from "../lib/wsms/subscriptionClient";
+import { linkIdentityAccount, registerBusinessWithIdentity } from "../lib/identity/identityClient";
+
+// Cross-product signup Phase A: WEGN Home's canonical production URL.
+// Not read from an env var - no existing convention for cross-product
+// URLs exists in this codebase to follow.
+const WEGN_HOME_URL = "https://wegn-home.vercel.app";
 
 const ACCENT = "#E8C547";
 const BG = "#080808";
@@ -101,7 +107,31 @@ export default function RegisterPage() {
       }),
     }).catch(() => { /* silent — email failure never blocks the user */ });
 
-    window.location.href = "/dashboard";
+    // Cross-product signup Phase A: account-link, then (Phase C stub,
+    // currently automatic — see registerBusinessWithIdentity's own
+    // header comment) business-link, awaited in order because
+    // register-business-link requires an existing account_links row.
+    // Neither call is allowed to block or fail the signup itself — the
+    // business already exists and works regardless — so any failure
+    // here just falls back to this product's own dashboard exactly as
+    // before, instead of sending the owner to WEGN Home with nothing to
+    // show there yet.
+    let destination = "/dashboard";
+    if (newBusiness) {
+      try {
+        const linkResult = await linkIdentityAccount();
+        if (linkResult.wegnAccountId) {
+          const bizLinkResult = await registerBusinessWithIdentity(newBusiness.id);
+          if (bizLinkResult.ok) {
+            destination = `${WEGN_HOME_URL}/login?email=${encodeURIComponent(form.email.trim())}`;
+          }
+        }
+      } catch (err) {
+        console.error("[register] identity linking failed (non-blocking):", err);
+      }
+    }
+
+    window.location.href = destination;
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {

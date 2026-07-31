@@ -7,6 +7,7 @@ import { AppointmentCalendar } from "../components/AppointmentCalendar";
 import { FinancialsTab } from "../components/FinancialsTab";
 import { registerBusinessWithWsms, checkSubscription } from "../lib/wsms/subscriptionClient";
 import { deriveSubscriptionBanner, type SubscriptionBanner } from "../lib/wsms/subscriptionBanner";
+import { linkIdentityAccount, registerBusinessWithIdentity } from "../lib/identity/identityClient";
 
 type Business = {
   id: string; name: string; type: string; plan: string;
@@ -201,9 +202,24 @@ export default function DashboardPage() {
             plan: "starter", subscription_status: "trialing",
           }).select("*").single();
           biz = created as Business | null;
-          // Fire-and-forget — a WSMS failure must never block this
-          // fallback flow. See src/lib/wsms/subscriptionClient.ts.
-          if (biz) void registerBusinessWithWsms(biz.id);
+          if (biz) {
+            // Fire-and-forget — a WSMS failure must never block this
+            // fallback flow. See src/lib/wsms/subscriptionClient.ts.
+            void registerBusinessWithWsms(biz.id);
+            // Cross-product signup Phase A: same identity/business-link
+            // chain as RegisterPage.tsx, fire-and-forget here since the
+            // owner has already landed on this dashboard (via the
+            // magic-link fallback) - unlike a fresh registration,
+            // redirecting them away mid-load would be a surprise, not
+            // an expected next step. Still links the business into WEGN
+            // Identity so it appears in WEGN Home whenever they next
+            // visit there.
+            const bizId = biz.id;
+            void (async () => {
+              const linkResult = await linkIdentityAccount();
+              if (linkResult.wegnAccountId) void registerBusinessWithIdentity(bizId);
+            })();
+          }
         } catch { /* ignore - fall through to no-business UI */ }
         localStorage.removeItem("qw_pending_registration");
       }
