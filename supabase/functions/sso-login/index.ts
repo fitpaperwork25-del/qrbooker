@@ -13,9 +13,21 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
  *
  * Deliberately does not create or modify any user - generateLink only
  * ever succeeds for an email that already has a QRBooker account.
+ *
+ * Destination resolution (WEGN Restaurants Launch audit): the token now
+ * carries the actual redirect destination, resolved server-side by
+ * wegn-identity's sso-issue-token from wegn_product_destinations - the
+ * same canonical source business-portfolio-v1 already uses - instead of
+ * this file hardcoding its own. FALLBACK_URL is only a defense-in-depth
+ * value for a malformed/missing payload, and ALLOWED_ORIGIN guards
+ * against ever redirecting somewhere outside this product even if that
+ * canonical config were ever misentered - the token's HMAC signature
+ * already proves wegn-identity produced it, this is a second, cheap
+ * check on top.
  */
 
-const REDIRECT_URL = "https://qrbooker.app";
+const FALLBACK_URL = "https://qrbooker.app";
+const ALLOWED_ORIGIN = "https://qrbooker.app";
 
 function redirect(location: string): Response {
   return new Response(null, { status: 302, headers: { Location: location } });
@@ -45,36 +57,45 @@ serve(async (req: Request) => {
   const url = new URL(req.url);
   const token = url.searchParams.get("token") ?? "";
   const [encodedPayload, signature] = token.split(".");
-  if (!encodedPayload || !signature) return redirect(REDIRECT_URL);
+  if (!encodedPayload || !signature) return redirect(FALLBACK_URL);
 
   const secret = Deno.env.get("IDENTITY_CREDENTIAL");
-  if (!secret) return redirect(REDIRECT_URL);
+  if (!secret) return redirect(FALLBACK_URL);
 
   const expectedSignature = await hmacSha256Hex(secret, encodedPayload);
-  if (!timingSafeEqualHex(expectedSignature, signature)) return redirect(REDIRECT_URL);
+  if (!timingSafeEqualHex(expectedSignature, signature)) return redirect(FALLBACK_URL);
 
-  let payload: { email?: unknown; exp?: unknown };
+  let payload: { email?: unknown; destination?: unknown; exp?: unknown };
   try {
     payload = JSON.parse(base64UrlDecode(encodedPayload));
   } catch {
-    return redirect(REDIRECT_URL);
+    return redirect(FALLBACK_URL);
   }
   if (typeof payload.email !== "string" || typeof payload.exp !== "number" || payload.exp < Math.floor(Date.now() / 1000)) {
-    return redirect(REDIRECT_URL);
+    return redirect(FALLBACK_URL);
+  }
+
+  let redirectTo = FALLBACK_URL;
+  if (typeof payload.destination === "string") {
+    try {
+      if (new URL(payload.destination).origin === ALLOWED_ORIGIN) redirectTo = payload.destination;
+    } catch {
+      // malformed destination - keep the fallback
+    }
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!supabaseUrl || !serviceRoleKey) return redirect(REDIRECT_URL);
+  if (!supabaseUrl || !serviceRoleKey) return redirect(FALLBACK_URL);
 
   const admin = createClient(supabaseUrl, serviceRoleKey);
   const { data, error } = await admin.auth.admin.generateLink({
     type: "magiclink",
     email: payload.email,
-    options: { redirectTo: REDIRECT_URL },
+    options: { redirectTo },
   });
   const actionLink = (data as { properties?: { action_link?: string } } | null)?.properties?.action_link;
-  if (error || !actionLink) return redirect(REDIRECT_URL);
+  if (error || !actionLink) return redirect(FALLBACK_URL);
 
   return redirect(actionLink);
 });
