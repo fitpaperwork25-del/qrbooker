@@ -5,8 +5,7 @@ import { supabase } from "../lib/supabase";
 import { ACCENT, BG, BORDER, MUTED, SURFACE, TEXT, GREEN, RED } from "../constants/theme";
 import { AppointmentCalendar } from "../components/AppointmentCalendar";
 import { FinancialsTab } from "../components/FinancialsTab";
-import { registerBusinessWithWsms, checkSubscription } from "../lib/wsms/subscriptionClient";
-import { deriveSubscriptionBanner, type SubscriptionBanner } from "../lib/wsms/subscriptionBanner";
+import { registerBusinessWithWsms } from "../lib/wsms/subscriptionClient";
 import {
   registerBusinessWithIdentityReliable,
   markBusinessRegistrationIncomplete,
@@ -38,7 +37,7 @@ type Tab = "appointments" | "services" | "chairs" | "financials" | "branding";
 const EMPTY_ITEM = { name: "", price: "", description: "", category_id: "" };
 
 const card: React.CSSProperties = {
-  background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 10, padding: "24px 28px",
+  background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 10, padding: "20px 24px",
 };
 
 const badge = (color: string): React.CSSProperties => ({
@@ -47,23 +46,9 @@ const badge = (color: string): React.CSSProperties => ({
   fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase",
 });
 
-const PLAN_ORDER = ["trialing", "starter", "pro", "enterprise"];
-const PLAN_LABELS: Record<string, { label: string; price: string; features: string[]; recommended?: boolean }> = {
-  starter:    { label: "Starter",    price: "$49/mo",  features: ["1 location", "QR booking", "Service management", "Appointment dashboard"] },
-  pro:        { label: "Pro",        price: "$99/mo",  features: ["Up to 5 locations", "Booking system", "Staff management", "Priority support"], recommended: true },
-  enterprise: { label: "Enterprise", price: "$199/mo", features: ["Unlimited locations", "White label", "Custom domain", "Dedicated support"] },
-};
-
-function planColor(plan: string) {
-  if (plan === "enterprise") return TEXT;
-  if (plan === "pro") return ACCENT;
-  return MUTED;
-}
-function statusColor(status: string) {
-  if (status === "active") return GREEN;
-  if (status === "trialing") return ACCENT;
-  return RED;
-}
+// Higher-contrast than MUTED specifically for inactive dashboard tabs —
+// visual-polish pass only, MUTED itself (and its other uses) is untouched.
+const TAB_INACTIVE = "rgba(240,237,232,0.55)";
 
 export default function DashboardPage() {
   const { session, signOut } = useAuth();
@@ -86,9 +71,6 @@ export default function DashboardPage() {
   const [pinSaving, setPinSaving] = useState(false);
   const [pinError,  setPinError]  = useState("");
   const [pinSaved,  setPinSaved]  = useState(false);
-
-  const [subscriptionBanner, setSubscriptionBanner] = useState<SubscriptionBanner | null>(null);
-  const [subscriptionNoticeDismissed, setSubscriptionNoticeDismissed] = useState(false);
 
   const [registrationIncomplete, setRegistrationIncomplete] = useState(false);
   const [registrationRetrying, setRegistrationRetrying] = useState(false);
@@ -120,8 +102,6 @@ export default function DashboardPage() {
   const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
   const [cancelReason, setCancelReason]           = useState("");
   const [cancelError, setCancelError]             = useState("");
-
-  const [upgrading, setUpgrading] = useState<string | null>(null);
 
   // -- CSV Import -------------------------------------------
   const csvInputRef                           = useRef<HTMLInputElement>(null);
@@ -275,33 +255,6 @@ export default function DashboardPage() {
     setRegistrationRetrying(false);
   }
 
-  // WSMS integration. Checks once when the business loads, then
-  // re-checks if the tab is reopened/refocused after being stale for
-  // more than 12 hours - not on every render. See
-  // docs/WSMS_PRODUCT_INTEGRATION_PATTERN.md - this mirrors
-  // wegn-store-app's entitlement-check pattern exactly.
-  useEffect(() => {
-    if (!business?.id) return;
-    const SUBSCRIPTION_STALE_MS = 12 * 60 * 60 * 1000;
-    let lastCheckedAt = 0;
-
-    async function runCheck() {
-      lastCheckedAt = Date.now();
-      const result = await checkSubscription(business!.id);
-      setSubscriptionBanner(deriveSubscriptionBanner(result));
-      setSubscriptionNoticeDismissed(false);
-    }
-    void runCheck();
-
-    function handleVisibilityChange() {
-      if (document.visibilityState !== "visible") return;
-      if (Date.now() - lastCheckedAt < SUBSCRIPTION_STALE_MS) return;
-      void runCheck();
-    }
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, [business?.id]);
-
   async function addTable(e: React.FormEvent) {
     e.preventDefault();
     if (!business || !newTableName.trim()) return;
@@ -430,17 +383,6 @@ export default function DashboardPage() {
     if (error) { console.error("cancelOrder failed:", error); setCancelError(error.message); return; }
     setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: "cancelled", cancel_reason: reason } : o));
     setCancellingOrderId(null); setCancelReason("");
-  }
-
-  async function startCheckout(plan: string) {
-    if (!business || !session?.user.email) return;
-    setUpgrading(plan);
-    try {
-      const res = await fetch("/api/create-checkout-session", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ plan, businessId: business.id, email: session.user.email }) });
-      const { url, error } = await res.json();
-      if (error) { alert(error); setUpgrading(null); return; }
-      window.location.href = url;
-    } catch { alert("Failed to start checkout. Try again."); setUpgrading(null); }
   }
 
 
@@ -727,37 +669,55 @@ export default function DashboardPage() {
   ];
   const checklistDone = checklist.filter((c) => c.done).length;
   const allDone = checklistDone === checklist.length;
-  const currentPlanIndex = PLAN_ORDER.indexOf(business.subscription_status === "trialing" ? "trialing" : business.plan);
-  const upgradePlans = Object.entries(PLAN_LABELS).filter(([p]) => PLAN_ORDER.indexOf(p) > currentPlanIndex);
+
+  // Shared tab-switcher buttons — rendered either as their own row (other
+  // tabs) or merged straight into AppointmentCalendar's own toolbar row
+  // (Appointments tab), so there's exactly one copy, never duplicated.
+  const tabSwitcher = (
+    <>
+      {(["appointments", "services", "chairs", "financials", "branding"] as Tab[]).map((t) => (
+        <button key={t} onClick={() => setTab(t)}
+          style={{ background: "none", border: "none", borderBottom: tab === t ? `2px solid ${ACCENT}` : "2px solid transparent", color: tab === t ? ACCENT : TAB_INACTIVE, padding: isMobile ? "8px 10px" : "8px 14px", fontWeight: tab === t ? 800 : 600, fontSize: isMobile ? 13 : 14, cursor: "pointer", textTransform: "capitalize", letterSpacing: 0.5, transition: "color 0.15s", whiteSpace: "nowrap", flexShrink: 0 }}>
+          {t}
+          {t === "chairs" && locations.length > 0 && <span style={{ marginLeft: 8, background: BORDER, borderRadius: 12, padding: "2px 8px", fontSize: 11, color: MUTED }}>{locations.length}</span>}
+          {t === "services" && menuItems.length > 0 && <span style={{ marginLeft: 8, background: BORDER, borderRadius: 12, padding: "2px 8px", fontSize: 11, color: MUTED }}>{menuItems.length}</span>}
+          {t === "appointments" && orders.length > 0 && <span style={{ marginLeft: 8, background: BORDER, borderRadius: 12, padding: "2px 8px", fontSize: 11, color: MUTED }}>{orders.length}</span>}
+        </button>
+      ))}
+    </>
+  );
 
   return (
     <div style={{ background: BG, minHeight: "100vh", color: TEXT, fontFamily: "sans-serif" }}>
 
       {/* Nav */}
-      <nav style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: isMobile ? "14px 16px" : "18px 32px", borderBottom: `1px solid ${BORDER}`, gap: 12 }}>
+      <nav style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: isMobile ? "7px 16px" : "7px 20px", borderBottom: `1px solid ${BORDER}`, gap: 12 }}>
         <div style={{ minWidth: 0, overflow: "hidden" }}>
-          <span style={{ fontWeight: 900, fontSize: isMobile ? 15 : 18, letterSpacing: -0.5, display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{business.name}</span>
-          <div style={{ display: "flex", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
-            <span style={{ ...badge(planColor(business.plan)) }}>{business.plan}</span>
-            <span style={{ ...badge(statusColor(business.subscription_status)) }}>{business.subscription_status}</span>
-          </div>
+          <span style={{ fontWeight: 900, fontSize: isMobile ? 14 : 16, letterSpacing: -0.5, display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{business.name}</span>
         </div>
-        <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+        <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
           <button onClick={() => window.open("/staff-login", "_blank")}
-            style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "8px 14px", color: MUTED, cursor: "pointer", fontSize: 13 }}>
+            style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 7, padding: "5px 12px", color: MUTED, cursor: "pointer", fontSize: 12 }}>
             Staff login
           </button>
           <button onClick={signOut}
-            style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "8px 14px", color: MUTED, cursor: "pointer", fontSize: 13 }}>
+            style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 7, padding: "5px 12px", color: MUTED, cursor: "pointer", fontSize: 12 }}>
             Sign out
           </button>
         </div>
       </nav>
 
-      <div style={{ maxWidth: 960, margin: "0 auto", padding: isMobile ? "20px 16px" : "36px 24px", display: "flex", flexDirection: "column", gap: 28 }}>
+      <div style={{
+        maxWidth: tab === "appointments" ? "none" : 960,
+        margin: "0 auto",
+        padding: isMobile ? "8px 14px" : tab === "appointments" ? "8px 16px" : "20px 24px",
+        display: "flex", flexDirection: "column",
+        gap: isMobile ? 14 : tab === "appointments" ? 8 : 20,
+      }}>
 
         {registrationIncomplete && (
           <div style={{
+            order: 2,
             padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px",
             background: "#2a2414", color: "#E8C547", border: "1px solid #E8C54744",
             borderRadius: "8px", fontSize: "14px",
@@ -770,22 +730,9 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {subscriptionBanner && !subscriptionNoticeDismissed && (
-          <div style={{
-            padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px",
-            background: subscriptionBanner.tone === "danger" ? "#2a1414" : subscriptionBanner.tone === "warning" ? "#2a2414" : "#14202a",
-            color: subscriptionBanner.tone === "danger" ? "#f44336" : subscriptionBanner.tone === "warning" ? "#E8C547" : "#5b9bd5",
-            border: `1px solid ${subscriptionBanner.tone === "danger" ? "#f4433644" : subscriptionBanner.tone === "warning" ? "#E8C54744" : "#5b9bd544"}`,
-            borderRadius: "8px", fontSize: "14px",
-          }}>
-            <span>{subscriptionBanner.message}</span>
-            <button onClick={() => setSubscriptionNoticeDismissed(true)} style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", fontSize: "13px", textDecoration: "underline", whiteSpace: "nowrap" }}>Dismiss</button>
-          </div>
-        )}
-
         {/* Setup checklist */}
         {!allDone && (
-          <div style={card}>
+          <div style={{ ...card, order: 3 }}>
             <p style={{ fontSize: 11, letterSpacing: 3, color: ACCENT, fontWeight: 700, textTransform: "uppercase", marginBottom: 16 }}>Setup - {checklistDone}/{checklist.length} done</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {checklist.map((item) => (
@@ -800,38 +747,13 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Upgrade banner */}
-        {upgradePlans.length > 0 && (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16 }}>
-            {upgradePlans.map(([planKey, info]) => (
-              <div key={planKey} style={{ ...card, border: info.recommended ? `2px solid ${ACCENT}44` : `1px solid ${BORDER}`, position: "relative" }}>
-                {info.recommended && <div style={{ position: "absolute", top: -12, left: 20, background: ACCENT, color: BG, fontSize: 10, fontWeight: 800, letterSpacing: 2, padding: "3px 10px", borderRadius: 4 }}>RECOMMENDED</div>}
-                <div style={{ fontSize: 11, color: MUTED, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>{info.label}</div>
-                <div style={{ fontSize: 28, fontWeight: 900, color: ACCENT, marginBottom: 12 }}>{info.price}</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 20 }}>
-                  {info.features.map((f) => <div key={f} style={{ fontSize: 13, color: MUTED, display: "flex", gap: 8 }}><span style={{ color: GREEN }}>{'\u2713'}</span>{f}</div>)}
-                </div>
-                <button onClick={() => startCheckout(planKey)} disabled={upgrading === planKey}
-                  style={{ width: "100%", background: info.recommended ? ACCENT : "none", color: info.recommended ? BG : ACCENT, border: `1.5px solid ${ACCENT}`, borderRadius: 8, padding: "12px", fontWeight: 800, fontSize: 14, cursor: upgrading === planKey ? "not-allowed" : "pointer" }}>
-                  {upgrading === planKey ? "Redirecting..." : `Upgrade to ${info.label} \u2192`}
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Tabs */}
-        <div>
-          <div style={{ display: "flex", gap: 0, borderBottom: `1px solid ${BORDER}`, marginBottom: 24, overflowX: "auto", scrollbarWidth: "none", WebkitOverflowScrolling: "touch" } as React.CSSProperties}>
-            {(["appointments", "services", "chairs", "financials", "branding"] as Tab[]).map((t) => (
-              <button key={t} onClick={() => setTab(t)}
-                style={{ background: "none", border: "none", borderBottom: tab === t ? `2px solid ${ACCENT}` : "2px solid transparent", color: tab === t ? ACCENT : MUTED, padding: isMobile ? "10px 14px" : "12px 24px", fontWeight: 700, fontSize: isMobile ? 13 : 14, cursor: "pointer", textTransform: "capitalize", letterSpacing: 0.5, transition: "color 0.15s", whiteSpace: "nowrap", flexShrink: 0 }}>
-                {t}
-                {t === "chairs" && locations.length > 0 && <span style={{ marginLeft: 8, background: BORDER, borderRadius: 12, padding: "2px 8px", fontSize: 11, color: MUTED }}>{locations.length}</span>}
-                {t === "services" && menuItems.length > 0 && <span style={{ marginLeft: 8, background: BORDER, borderRadius: 12, padding: "2px 8px", fontSize: 11, color: MUTED }}>{menuItems.length}</span>}
-                {t === "appointments" && orders.length > 0 && <span style={{ marginLeft: 8, background: BORDER, borderRadius: 12, padding: "2px 8px", fontSize: 11, color: MUTED }}>{orders.length}</span>}
-              </button>
-            ))}
+        {/* Appointments (and other tabs) \u2014 first thing after the header */}
+        <div style={{ order: 1 }}>
+          {/* Tab switcher stays on its own row for every tab, including
+              Appointments \u2014 the calendar's own controls (view/date/actions)
+              get their own row directly beneath it. */}
+          <div style={{ display: "flex", gap: 2, borderBottom: `1px solid ${BORDER}`, marginBottom: 12, overflowX: "auto", scrollbarWidth: "none", WebkitOverflowScrolling: "touch" } as React.CSSProperties}>
+            {tabSwitcher}
           </div>
 
           {/* Tables tab */}

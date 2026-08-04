@@ -3,11 +3,21 @@ import { supabase } from "../lib/supabase";
 import { ACCENT, BG, BORDER, MUTED, SURFACE, TEXT, GREEN, RED } from "../constants/theme";
 
 // ── Constants ─────────────────────────────────────────────
-const SLOT_H       = 48;
+const SLOT_H       = 56;
 const DAY_START    = 8;
 const DAY_END      = 21;
 const TOTAL_SLOTS  = (DAY_END - DAY_START) * 2;
 const TOTAL_H      = TOTAL_SLOTS * SLOT_H;
+
+// Calendar-local palette — one step lighter than the shared SURFACE/BORDER
+// tokens purely to give the grid depth (per visual-polish pass); the
+// shared theme constants are untouched so nothing else in the app shifts.
+const CAL_SURFACE    = "#161616";
+const CAL_HEADER_BG  = "#1c1c1c";
+const CAL_TEXT_MUTED = "rgba(240,237,232,0.58)";
+const GRID_LINE_HOUR = "rgba(255,255,255,0.16)";
+const GRID_LINE_HALF = "rgba(255,255,255,0.06)";
+const COL_BORDER     = "rgba(255,255,255,0.10)";
 
 const APPT_COLOR: Record<string, string> = {
   booked:    "#E8C547",
@@ -298,25 +308,25 @@ export function AppointmentCalendar({
 
     return (
       <div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 3, marginBottom: 3 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, marginBottom: 4 }}>
           {WEEKDAYS.map(d => (
-            <div key={d} style={{ textAlign: "center", fontSize: 11, fontWeight: 700, color: MUTED, letterSpacing: 1, padding: "6px 0" }}>{d}</div>
+            <div key={d} style={{ textAlign: "center", fontSize: 12, fontWeight: 800, color: CAL_TEXT_MUTED, letterSpacing: 1.2, padding: "6px 0" }}>{d}</div>
           ))}
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 3 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 }}>
           {cells.map((day, i) => {
-            if (!day) return <div key={i} style={{ minHeight: 72 }} />;
+            if (!day) return <div key={i} style={{ minHeight: 88 }} />;
             const dateStr  = `${y}-${String(m + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
             const dayAppts = appointments.filter(a => String(a.date).slice(0, 10) === dateStr);
             const hasBlock = blockedTimes.some(b => String(b.date).slice(0, 10) === dateStr);
             const isToday  = dateStr === todayStr;
             return (
               <div key={i} onClick={() => { setView("week"); setWeekStart(getMonday(new Date(`${dateStr}T12:00:00`))); }}
-                style={{ background: isToday ? ACCENT + "15" : SURFACE, border: `1px solid ${isToday ? ACCENT + "66" : BORDER}`, borderRadius: 8, padding: "7px 9px", minHeight: 72, cursor: "pointer", position: "relative", transition: "border-color 0.15s" }}>
+                style={{ background: isToday ? ACCENT + "15" : CAL_SURFACE, border: `1px solid ${isToday ? ACCENT + "66" : COL_BORDER}`, borderRadius: 8, padding: "8px 10px", minHeight: 88, cursor: "pointer", position: "relative", transition: "border-color 0.15s" }}>
                 {hasBlock && (
                   <div style={{ position: "absolute", inset: 0, background: "repeating-linear-gradient(45deg,transparent,transparent 5px,rgba(255,0,0,0.04) 5px,rgba(255,0,0,0.04) 10px)", borderRadius: 7, pointerEvents: "none" }} />
                 )}
-                <div style={{ fontSize: 13, fontWeight: isToday ? 900 : 600, color: isToday ? ACCENT : TEXT, marginBottom: 5 }}>{day}</div>
+                <div style={{ fontSize: 15, fontWeight: isToday ? 900 : 700, color: isToday ? ACCENT : TEXT, marginBottom: 6 }}>{day}</div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
                   {dayAppts.slice(0, 8).map(a => (
                     <div key={a.id} style={{ width: 8, height: 8, borderRadius: "50%", background: APPT_COLOR[a.status] ?? MUTED, flexShrink: 0 }} title={a.client_name} />
@@ -343,24 +353,24 @@ export function AppointmentCalendar({
     }
 
     return (
-      <div style={{ border: `1px solid ${BORDER}`, borderRadius: 10, overflow: "hidden", background: SURFACE }}>
+      <div style={{ border: `1px solid ${COL_BORDER}`, borderRadius: 12, overflow: "hidden", background: CAL_SURFACE, boxShadow: "0 8px 24px rgba(0,0,0,0.35)" }}>
         {/* Day headers */}
-        <div style={{ display: "grid", gridTemplateColumns: "56px repeat(7, 1fr)", borderBottom: `1px solid ${BORDER}`, position: "sticky", top: 0, background: SURFACE, zIndex: 10 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "64px repeat(7, 1fr)", borderBottom: `1px solid ${COL_BORDER}`, position: "sticky", top: 0, background: CAL_HEADER_BG, zIndex: 10 }}>
           <div />
           {days.map(day => {
             const dateStr = fmt(day);
             const isToday = dateStr === todayStr;
             const count   = appointments.filter(a => String(a.date).slice(0, 10) === dateStr).length;
             return (
-              <div key={dateStr} style={{ padding: "10px 6px", textAlign: "center", borderLeft: `1px solid ${BORDER}`, background: isToday ? ACCENT + "08" : "transparent" }}>
-                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: isToday ? ACCENT : MUTED }}>
+              <div key={dateStr} style={{ padding: "13px 6px", textAlign: "center", borderLeft: `1px solid ${COL_BORDER}`, background: isToday ? ACCENT + "14" : "transparent" }}>
+                <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: 1.2, color: isToday ? ACCENT : CAL_TEXT_MUTED }}>
                   {day.toLocaleDateString(undefined, { weekday: "short" }).toUpperCase()}
                 </div>
-                <div style={{ fontSize: 20, fontWeight: 900, color: isToday ? ACCENT : TEXT, lineHeight: 1.2 }}>
+                <div style={{ fontSize: 25, fontWeight: 900, color: isToday ? ACCENT : TEXT, lineHeight: 1.3 }}>
                   {day.getDate()}
                 </div>
                 {count > 0 && (
-                  <div style={{ fontSize: 10, color: MUTED, marginTop: 2 }}>{count} appt{count !== 1 ? "s" : ""}</div>
+                  <div style={{ fontSize: 11, color: CAL_TEXT_MUTED, marginTop: 2, fontWeight: 600 }}>{count} appt{count !== 1 ? "s" : ""}</div>
                 )}
               </div>
             );
@@ -368,15 +378,15 @@ export function AppointmentCalendar({
         </div>
 
         {/* Scrollable time grid */}
-        <div style={{ overflowY: "auto", maxHeight: 620 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "56px repeat(7, 1fr)", height: TOTAL_H, position: "relative" }}>
+        <div style={{ overflowY: "auto", maxHeight: "calc(100vh - 300px)", minHeight: 480 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "64px repeat(7, 1fr)", height: TOTAL_H, position: "relative" }}>
 
             {/* Time labels column */}
             <div style={{ position: "relative" }}>
               {timeSlots.map((slot, i) => (
-                <div key={i} style={{ position: "absolute", top: i * SLOT_H, right: 0, left: 0, height: SLOT_H, display: "flex", alignItems: "flex-start", justifyContent: "flex-end", paddingRight: 8, paddingTop: 3 }}>
+                <div key={i} style={{ position: "absolute", top: i * SLOT_H, right: 0, left: 0, height: SLOT_H, display: "flex", alignItems: "flex-start", justifyContent: "flex-end", paddingRight: 10, paddingTop: 3 }}>
                   {slot.label.endsWith(":00") && (
-                    <span style={{ fontSize: 10, color: MUTED, fontFamily: "monospace", lineHeight: 1 }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: CAL_TEXT_MUTED, fontFamily: "monospace", lineHeight: 1 }}>
                       {slot.label}
                     </span>
                   )}
@@ -387,11 +397,12 @@ export function AppointmentCalendar({
             {/* Day columns */}
             {days.map(day => {
               const dateStr  = fmt(day);
+              const isToday   = dateStr === todayStr;
               const dayAppts  = appointments.filter(a => String(a.date).slice(0, 10) === dateStr);
               const dayBlocks = blockedTimes.filter(b => String(b.date).slice(0, 10) === dateStr);
 
               return (
-                <div key={dateStr} style={{ borderLeft: `1px solid ${BORDER}`, position: "relative", height: TOTAL_H }}>
+                <div key={dateStr} style={{ borderLeft: `1px solid ${COL_BORDER}`, position: "relative", height: TOTAL_H, background: isToday ? ACCENT + "07" : "transparent" }}>
 
                   {/* Clickable slot lines */}
                   {timeSlots.map((slot, i) => (
@@ -403,7 +414,7 @@ export function AppointmentCalendar({
                       }}
                       style={{
                         position: "absolute", top: i * SLOT_H, left: 0, right: 0, height: SLOT_H,
-                        borderTop: `1px solid ${i % 2 === 0 ? BORDER : "rgba(255,255,255,0.03)"}`,
+                        borderTop: `1px solid ${i % 2 === 0 ? GRID_LINE_HOUR : GRID_LINE_HALF}`,
                         cursor: "cell",
                       }}
                     />
@@ -505,10 +516,12 @@ export function AppointmentCalendar({
 
   // ── Render ────────────────────────────────────────────────
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
 
-      {/* Toolbar */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+      {/* Calendar controls — view toggle, date nav, and Today on the left;
+          action buttons right-aligned, grouped as one unit so they wrap
+          together (never split) if the row ever runs out of space. */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", padding: "2px 0" }}>
         {/* View toggle */}
         <div style={{ display: "flex", background: BG, border: `1px solid ${BORDER}`, borderRadius: 8, padding: 3, gap: 2 }}>
           {(["week", "month"] as const).map(v => (
@@ -522,30 +535,35 @@ export function AppointmentCalendar({
         <button onClick={nextPeriod} style={navBtn}>→</button>
         <button onClick={goToday} style={{ ...navBtn, fontSize: 12, padding: "6px 14px" }}>Today</button>
 
-        <div style={{ flex: 1 }} />
         {calLoading && <span style={{ fontSize: 12, color: MUTED, fontStyle: "italic" }}>Loading…</span>}
 
-        <button onClick={() => { setShowBlock(true); setBlockForm({ ...E_BLOCK, date: fmt(view === "week" ? weekStart : monthDate) }); }}
-          style={{ background: "none", border: `1px solid ${RED}55`, borderRadius: 8, padding: "8px 16px", color: RED, fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
-          Block time
-        </button>
-        <button onClick={() => openAddAppt()}
-          style={{ background: ACCENT, color: BG, border: "none", borderRadius: 8, padding: "8px 18px", fontSize: 13, fontWeight: 800, cursor: "pointer" }}>
-          + Add appointment
-        </button>
+        <div style={{ flex: 1 }} />
+
+        {/* Action group — wrapped together so the two buttons move to a new
+            line as one unit rather than splitting across the wrap. */}
+        <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+          <button onClick={() => { setShowBlock(true); setBlockForm({ ...E_BLOCK, date: fmt(view === "week" ? weekStart : monthDate) }); }}
+            style={{ background: "none", border: "none", color: MUTED, fontSize: 13, fontWeight: 600, cursor: "pointer", padding: "8px 6px", whiteSpace: "nowrap" }}>
+            Block time
+          </button>
+          <button onClick={() => openAddAppt()}
+            style={{ background: ACCENT, color: BG, border: "none", borderRadius: 8, padding: "9px 18px", fontSize: 14, fontWeight: 800, cursor: "pointer", boxShadow: `0 2px 10px ${ACCENT}33`, whiteSpace: "nowrap" }}>
+            + Add appointment
+          </button>
+        </div>
       </div>
 
       {/* Legend */}
-      <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 9, flexWrap: "wrap" }}>
         {Object.entries(APPT_COLOR).map(([s, c]) => (
-          <div key={s} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-            <div style={{ width: 8, height: 8, borderRadius: "50%", background: c }} />
-            <span style={{ fontSize: 11, color: MUTED, textTransform: "capitalize" }}>{s.replace("_", " ")}</span>
+          <div key={s} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <div style={{ width: 7, height: 7, borderRadius: "50%", background: c, flexShrink: 0 }} />
+            <span style={{ fontSize: 11, color: CAL_TEXT_MUTED, textTransform: "capitalize", whiteSpace: "nowrap" }}>{s.replace("_", " ")}</span>
           </div>
         ))}
-        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-          <div style={{ width: 14, height: 8, borderRadius: 2, background: "repeating-linear-gradient(45deg,rgba(255,0,0,0.2),rgba(255,0,0,0.2) 3px,rgba(0,0,0,0) 3px,rgba(0,0,0,0) 6px)", border: `1px solid ${RED}44` }} />
-          <span style={{ fontSize: 11, color: MUTED }}>Blocked</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <div style={{ width: 12, height: 7, borderRadius: 2, background: "repeating-linear-gradient(45deg,rgba(255,0,0,0.2),rgba(255,0,0,0.2) 3px,rgba(0,0,0,0) 3px,rgba(0,0,0,0) 6px)", border: `1px solid ${RED}44`, flexShrink: 0 }} />
+          <span style={{ fontSize: 11, color: CAL_TEXT_MUTED, whiteSpace: "nowrap" }}>Blocked</span>
         </div>
       </div>
 
