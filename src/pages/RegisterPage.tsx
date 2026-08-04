@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { registerBusinessWithWsms } from "../lib/wsms/subscriptionClient";
-import { linkIdentityAccount, registerBusinessWithIdentity } from "../lib/identity/identityClient";
+import { registerBusinessWithIdentityReliable, markBusinessRegistrationIncomplete } from "../lib/identity/identityClient";
 
 // Cross-product signup Phase A: WEGN Home's canonical production URL.
 // Not read from an env var - no existing convention for cross-product
@@ -116,18 +116,20 @@ export default function RegisterPage() {
     // here just falls back to this product's own dashboard exactly as
     // before, instead of sending the owner to WEGN Home with nothing to
     // show there yet.
+    //
+    // Phase 2 (Reliable Business Registration): registerBusinessWithIdentityReliable
+    // awaits account-link then retries business-link with bounded backoff
+    // instead of a single silent attempt. If account-link succeeded but
+    // business-link still failed after all retries, flag it so
+    // DashboardPage can show a visible, retryable "Registration incomplete"
+    // state instead of the previous silent console.error.
     let destination = "/dashboard";
     if (newBusiness) {
-      try {
-        const linkResult = await linkIdentityAccount();
-        if (linkResult.wegnAccountId) {
-          const bizLinkResult = await registerBusinessWithIdentity(newBusiness.id);
-          if (bizLinkResult.ok) {
-            destination = `${WEGN_HOME_URL}/login?email=${encodeURIComponent(form.email.trim())}`;
-          }
-        }
-      } catch (err) {
-        console.error("[register] identity linking failed (non-blocking):", err);
+      const regResult = await registerBusinessWithIdentityReliable(newBusiness.id);
+      if (regResult.ok) {
+        destination = `${WEGN_HOME_URL}/login?email=${encodeURIComponent(form.email.trim())}`;
+      } else if (regResult.wegnAccountId) {
+        markBusinessRegistrationIncomplete(newBusiness.id);
       }
     }
 

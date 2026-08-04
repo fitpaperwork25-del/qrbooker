@@ -7,7 +7,12 @@ import { AppointmentCalendar } from "../components/AppointmentCalendar";
 import { FinancialsTab } from "../components/FinancialsTab";
 import { registerBusinessWithWsms, checkSubscription } from "../lib/wsms/subscriptionClient";
 import { deriveSubscriptionBanner, type SubscriptionBanner } from "../lib/wsms/subscriptionBanner";
-import { linkIdentityAccount, registerBusinessWithIdentity } from "../lib/identity/identityClient";
+import {
+  registerBusinessWithIdentityReliable,
+  markBusinessRegistrationIncomplete,
+  clearBusinessRegistrationIncomplete,
+  isBusinessRegistrationIncomplete,
+} from "../lib/identity/identityClient";
 
 type Business = {
   id: string; name: string; type: string; plan: string;
@@ -84,6 +89,9 @@ export default function DashboardPage() {
 
   const [subscriptionBanner, setSubscriptionBanner] = useState<SubscriptionBanner | null>(null);
   const [subscriptionNoticeDismissed, setSubscriptionNoticeDismissed] = useState(false);
+
+  const [registrationIncomplete, setRegistrationIncomplete] = useState(false);
+  const [registrationRetrying, setRegistrationRetrying] = useState(false);
 
   const [addingCat, setAddingCat]   = useState(false);
   const [newCatName, setNewCatName] = useState("");
@@ -207,18 +215,20 @@ export default function DashboardPage() {
             // fallback flow. See src/lib/wsms/subscriptionClient.ts.
             void registerBusinessWithWsms(biz.id);
             // Cross-product signup Phase A: same identity/business-link
-            // chain as RegisterPage.tsx, fire-and-forget here since the
-            // owner has already landed on this dashboard (via the
-            // magic-link fallback) - unlike a fresh registration,
-            // redirecting them away mid-load would be a surprise, not
-            // an expected next step. Still links the business into WEGN
-            // Identity so it appears in WEGN Home whenever they next
-            // visit there.
-            const bizId = biz.id;
-            void (async () => {
-              const linkResult = await linkIdentityAccount();
-              if (linkResult.wegnAccountId) void registerBusinessWithIdentity(bizId);
-            })();
+            // chain as RegisterPage.tsx. The owner has already landed on
+            // this dashboard (via the magic-link fallback), so this is
+            // awaited rather than redirecting - it just links the
+            // business into WEGN Identity so it appears in WEGN Home
+            // whenever they next visit there.
+            //
+            // Phase 2 (Reliable Business Registration): awaited with
+            // bounded retry/backoff instead of the previous
+            // fire-and-forget call. On failure after retries, flag it so
+            // the banner below can surface a visible, retryable state.
+            const regResult = await registerBusinessWithIdentityReliable(biz.id);
+            if (!regResult.ok && regResult.wegnAccountId) {
+              markBusinessRegistrationIncomplete(biz.id);
+            }
           }
         } catch { /* ignore - fall through to no-business UI */ }
         localStorage.removeItem("qw_pending_registration");
@@ -226,6 +236,7 @@ export default function DashboardPage() {
     }
 
     setBusiness(biz);
+    setRegistrationIncomplete(biz ? isBusinessRegistrationIncomplete(biz.id) : false);
     if (biz) {
       const [locRes, ordRes, catRes, tabsRes] = await Promise.all([
         supabase.from("locations").select("id, name, label, is_active").eq("business_id", biz.id).order("name"),
@@ -246,6 +257,22 @@ export default function DashboardPage() {
       }
     }
     setLoading(false);
+  }
+
+  // Phase 2 (Reliable Business Registration): manual retry for the
+  // "Registration incomplete" banner below, using the same bounded
+  // retry/backoff helper as the automatic attempts at signup time.
+  async function retryBusinessRegistration() {
+    if (!business || registrationRetrying) return;
+    setRegistrationRetrying(true);
+    const regResult = await registerBusinessWithIdentityReliable(business.id);
+    if (regResult.ok) {
+      clearBusinessRegistrationIncomplete(business.id);
+      setRegistrationIncomplete(false);
+    } else if (regResult.wegnAccountId) {
+      markBusinessRegistrationIncomplete(business.id);
+    }
+    setRegistrationRetrying(false);
   }
 
   // WSMS integration. Checks once when the business loads, then
@@ -728,6 +755,20 @@ export default function DashboardPage() {
       </nav>
 
       <div style={{ maxWidth: 960, margin: "0 auto", padding: isMobile ? "20px 16px" : "36px 24px", display: "flex", flexDirection: "column", gap: 28 }}>
+
+        {registrationIncomplete && (
+          <div style={{
+            padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px",
+            background: "#2a2414", color: "#E8C547", border: "1px solid #E8C54744",
+            borderRadius: "8px", fontSize: "14px",
+          }}>
+            <span>Registration incomplete — this business isn't linked to WEGN Home yet.</span>
+            <button onClick={() => void retryBusinessRegistration()} disabled={registrationRetrying}
+              style={{ background: "none", border: "none", color: "inherit", cursor: registrationRetrying ? "not-allowed" : "pointer", fontSize: "13px", textDecoration: "underline", whiteSpace: "nowrap" }}>
+              {registrationRetrying ? "Retrying…" : "Retry"}
+            </button>
+          </div>
+        )}
 
         {subscriptionBanner && !subscriptionNoticeDismissed && (
           <div style={{
