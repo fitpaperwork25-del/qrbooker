@@ -133,7 +133,7 @@ export default function LoginPage() {
           }}
           onClick={() => navigate("/")}
         >
-          <img src="/logo.png" alt="QRBooker" style={{ height: 32, width: "auto" }} />
+          <img src="/logo.png" alt="WEGN" style={{ height: 32, width: "auto" }} />
           <span style={{ fontWeight: 800, fontSize: 17, letterSpacing: 1 }}>
             QRBooker
           </span>
