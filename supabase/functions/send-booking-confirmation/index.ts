@@ -15,7 +15,7 @@ const CRON_SECRET            = Deno.env.get("CRON_SECRET");
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-async function sendEmail(to: string, subject: string, html: string): Promise<void> {
+async function sendEmail(to: string, subject: string, html: string, fromName: string): Promise<void> {
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
@@ -23,7 +23,7 @@ async function sendEmail(to: string, subject: string, html: string): Promise<voi
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from:    `BarberShop 21 <${FROM_EMAIL}>`,
+      from:    `${fromName} <${FROM_EMAIL}>`,
       to:      [to],
       subject,
       html,
@@ -114,7 +114,7 @@ serve(async (req) => {
 <table width="100%" cellpadding="0" cellspacing="0" bgcolor="#f5f5f5"><tr><td align="center" style="padding:32px 16px">
 <table width="480" cellpadding="0" cellspacing="0" bgcolor="#ffffff" style="border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08)">
   <tr><td style="background:#080808;padding:24px 32px;text-align:center">
-    <div style="font-size:28px;font-weight:900;color:#E8C547;letter-spacing:2px">BARBERSHOP 21</div>
+    <div style="font-size:28px;font-weight:900;color:#E8C547;letter-spacing:2px">${bizName.toUpperCase()}</div>
   </td></tr>
   <tr><td style="padding:32px">
     <h1 style="margin:0 0 8px;font-size:22px;color:#1a1a1a">You're booked! ✓</h1>
@@ -129,7 +129,7 @@ serve(async (req) => {
     </div>
   </td></tr>
   <tr><td style="padding:16px 32px 24px;text-align:center;border-top:1px solid #f0f0f0">
-    <p style="margin:0;font-size:11px;color:#bbb">Powered by <strong>QRBooker</strong></p>
+    <p style="margin:0;font-size:11px;color:#bbb">Powered by <strong>WEGN</strong></p>
   </td></tr>
 </table>
 </td></tr></table>
@@ -140,6 +140,7 @@ serve(async (req) => {
       String(record.client_email),
       `Booking confirmed — ${bizName} — ${dateStr} at ${timeStr}`,
       html,
+      bizName,
     );
   }
 
@@ -162,7 +163,7 @@ serve(async (req) => {
     </table>
   </td></tr>
   <tr><td style="padding:16px 32px 24px;text-align:center;border-top:1px solid #f0f0f0">
-    <p style="margin:0;font-size:11px;color:#bbb">QRBooker</p>
+    <p style="margin:0;font-size:11px;color:#bbb">WEGN</p>
   </td></tr>
 </table>
 </td></tr></table>
@@ -173,6 +174,7 @@ serve(async (req) => {
     PIERCE_EMAIL,
     `New booking — ${String(record.client_name)} — ${dateStr} at ${timeStr}`,
     pierceHtml,
+    "WEGN",
   );
 
   return new Response(JSON.stringify({ ok: true }), {
