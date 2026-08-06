@@ -534,7 +534,7 @@ export default function AdminPage() {
       doc.setFontSize(8);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(...LIGHT);
-      doc.text("QRBooker", PAD + markW + 0.06, logoY + fSz * 1.45);
+      doc.text("WEGN", PAD + markW + 0.06, logoY + fSz * 1.45);
 
       // ── Thin gold rule ─────────────────────────────────────────────────
       const ruleY = logoY + fSz * 2 + fSz * 0.22 + 0.1;
