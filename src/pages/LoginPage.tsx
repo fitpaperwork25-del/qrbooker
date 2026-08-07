@@ -135,7 +135,7 @@ export default function LoginPage() {
         >
           <img src="/logo.png" alt="WEGN" style={{ height: 32, width: "auto" }} />
           <span style={{ fontWeight: 800, fontSize: 17, letterSpacing: 1 }}>
-            QRBooker
+            WEGN Appointments
           </span>
         </div>
 

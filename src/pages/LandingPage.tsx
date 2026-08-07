@@ -164,7 +164,7 @@ export default function LandingPage() {
       <nav style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 32px", borderBottom: `1px solid ${BORDER}` }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <img src="/logo.png" alt="WEGN" style={{ height: 32, width: "auto" }} />
-          <span style={{ fontWeight: 800, fontSize: 17, letterSpacing: 1, color: TEXT }}>QRBooker</span>
+          <span style={{ fontWeight: 800, fontSize: 17, letterSpacing: 1, color: TEXT }}>WEGN Appointments</span>
         </div>
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
           <div ref={demoRef} style={{ position: "relative" }}>
@@ -441,11 +441,11 @@ export default function LandingPage() {
           Scan to try
         </p>
         <p style={{ fontSize: 18, fontWeight: 800, color: TEXT, marginBottom: 28 }}>
-          Scan to try QRBooker
+          Scan to try WEGN Appointments
         </p>
         <div style={{ display: "inline-block", padding: 16, border: `1px solid ${BORDER}`, borderRadius: 16, background: "#080808" }}>
           {qrDataUrl
-            ? <img src={qrDataUrl} alt="Scan to try QRBooker" width={200} height={200} style={{ display: "block", borderRadius: 8 }} />
+            ? <img src={qrDataUrl} alt="Scan to try WEGN Appointments" width={200} height={200} style={{ display: "block", borderRadius: 8 }} />
             : <div style={{ width: 200, height: 200, background: "#111", borderRadius: 8 }} />
           }
         </div>
@@ -456,7 +456,7 @@ export default function LandingPage() {
 
       {/* Footer */}
       <footer style={{ borderTop: `1px solid ${BORDER}`, padding: "20px 32px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
-        <span style={{ fontSize: 13, color: MUTED }}>© 2026 QRBooker</span>
+        <span style={{ fontSize: 13, color: MUTED }}>© 2026 WEGN Appointments</span>
         <div style={{ display: "flex", gap: 24 }}>
           <button onClick={() => navigate("/pricing")} style={{ background: "none", border: "none", color: MUTED, fontSize: 13, cursor: "pointer", padding: 0 }}>Pricing</button>
           <button onClick={() => navigate("/terms")}   style={{ background: "none", border: "none", color: MUTED, fontSize: 13, cursor: "pointer", padding: 0 }}>Terms</button>

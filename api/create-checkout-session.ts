@@ -5,7 +5,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2026-04-22.dahlia",
 });
 
-const APP_URL = "https://qrwegn.com";
+const APP_URL = "https://qrbooker.app";
 
 const PRICE_IDS: Record<string, string | undefined> = {
   starter:    process.env.STRIPE_PRICE_STARTER,

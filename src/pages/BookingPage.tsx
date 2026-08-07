@@ -263,7 +263,7 @@ export default function BookingPage() {
           </button>
 
           <p style={{ textAlign: "center", color: MUTED, fontSize: 12, margin: 0 }}>
-            Powered by <span style={{ color: GOLD, fontWeight: 700 }}>QRBooker</span>
+            Powered by <span style={{ color: GOLD, fontWeight: 700 }}>WEGN Appointments</span>
           </p>
         </div>
       </div>
@@ -455,7 +455,7 @@ export default function BookingPage() {
             </button>
 
             <p style={{ textAlign: "center", color: MUTED, fontSize: 11, margin: 0, letterSpacing: 0.5 }}>
-              Powered by <span style={{ color: GOLD, fontWeight: 700 }}>QRBooker</span>
+              Powered by <span style={{ color: GOLD, fontWeight: 700 }}>WEGN Appointments</span>
             </p>
           </form>
         </div>

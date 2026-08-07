@@ -40,7 +40,7 @@ export function deriveSubscriptionBanner(result: SubscriptionCheckResult, now: n
     case "grace_period": {
       const graceEnd = result.gracePeriodEndsAt ? new Date(result.gracePeriodEndsAt).getTime() : null;
       if (graceEnd !== null && now > graceEnd) {
-        return { tone: "danger", message: "Your QRBooker subscription has expired. Your account remains fully operational — please contact us to renew." };
+        return { tone: "danger", message: "Your WEGN Appointments subscription has expired. Your account remains fully operational — please contact us to renew." };
       }
       if (graceEnd === null) {
         return { tone: "warning", message: "Payment is needed soon to avoid interruption. Please contact us to renew." };
@@ -50,10 +50,10 @@ export function deriveSubscriptionBanner(result: SubscriptionCheckResult, now: n
     }
 
     case "suspended":
-      return { tone: "danger", message: "Your QRBooker subscription is suspended due to non-payment. This is informational only — your account remains fully operational. Please contact us to renew." };
+      return { tone: "danger", message: "Your WEGN Appointments subscription is suspended due to non-payment. This is informational only — your account remains fully operational. Please contact us to renew." };
 
     case "cancelled":
-      return { tone: "danger", message: "Your QRBooker subscription has been cancelled. This is informational only — your account remains fully operational. Contact us if you'd like to reactivate." };
+      return { tone: "danger", message: "Your WEGN Appointments subscription has been cancelled. This is informational only — your account remains fully operational. Contact us if you'd like to reactivate." };
 
     default:
       return null;

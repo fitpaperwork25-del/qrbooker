@@ -106,7 +106,7 @@ function buildReminderHtml(appt: Appointment, barberName: string | null, bizName
     </table>
   </td></tr>
   <tr><td style="padding:16px 32px 24px;text-align:center;border-top:1px solid #f0f0f0">
-    <p style="margin:0;font-size:11px;color:#bbb">Powered by <strong>QRBooker</strong></p>
+    <p style="margin:0;font-size:11px;color:#bbb">Powered by <strong>WEGN Appointments</strong></p>
   </td></tr>
 </table>
 </td></tr></table>

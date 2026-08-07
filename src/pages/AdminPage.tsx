@@ -613,7 +613,7 @@ export default function AdminPage() {
       doc.setFontSize(7);
       doc.setFont("helvetica", "normal");
       doc.setTextColor(68, 64, 50);
-      doc.text("Powered by QRBooker", CX + 0.06, pwY, { align: "center" });
+      doc.text("Powered by WEGN Appointments", CX + 0.06, pwY, { align: "center" });
 
       cropMarks();
     }
@@ -1357,13 +1357,13 @@ export default function AdminPage() {
             </button>
 
             <p style={{ fontSize: 10, letterSpacing: 3, color: ACCENT, fontWeight: 700, textTransform: "uppercase", margin: "0 0 6px" }}>Operations Guide</p>
-            <h2 style={{ margin: "0 0 28px", fontWeight: 900, fontSize: 22 }}>QRBooker Admin Panel</h2>
+            <h2 style={{ margin: "0 0 28px", fontWeight: 900, fontSize: 22 }}>WEGN Appointments Admin Panel</h2>
 
             {([
               {
                 title: "Platform Overview",
                 body: [
-                  "QRBooker is a QR-booking platform for barbershops and salons. Each business gets a QR code per chair — customers scan it, browse services, and book appointments without an app.",
+                  "WEGN Appointments is a QR-booking platform for barbershops and salons. Each business gets a QR code per chair — customers scan it, browse services, and book appointments without an app.",
                   `Production URL: ${APP_URL}`,
                   "Stack: React + Vite frontend on Vercel, Supabase (Postgres + Auth + RLS), Stripe for billing.",
                 ],

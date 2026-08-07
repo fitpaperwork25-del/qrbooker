@@ -7,7 +7,7 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 const resend  = new Resend(process.env.RESEND_API_KEY);
-const APP_URL = "https://qrwegn.com";
+const APP_URL = "https://qrbooker.app";
 
 function html(businessName: string, magicLink: string): string {
   const finder = `
@@ -22,7 +22,7 @@ function html(businessName: string, magicLink: string): string {
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Your QR-Wegn dashboard is ready</title>
+  <title>Your WEGN Appointments dashboard is ready</title>
 </head>
 <body style="margin:0;padding:0;background:#080808;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#080808;">
@@ -56,8 +56,8 @@ function html(businessName: string, magicLink: string): string {
           </td>
         </tr>
       </table>
-      <div style="font-size:28px;font-weight:900;color:#F0EDE8;letter-spacing:2px;line-height:1;">QR-Wegn</div>
-      <div style="margin-top:8px;font-size:10px;font-weight:600;color:#E8C547;letter-spacing:5px;">SCAN &middot; ORDER &middot; SERVE</div>
+      <div style="font-size:28px;font-weight:900;color:#F0EDE8;letter-spacing:2px;line-height:1;">WEGN Appointments</div>
+      <div style="margin-top:8px;font-size:10px;font-weight:600;color:#E8C547;letter-spacing:5px;">SCAN &middot; BOOK &middot; SHOW UP</div>
     </td>
   </tr>
 
@@ -74,7 +74,7 @@ function html(businessName: string, magicLink: string): string {
   <tr>
     <td style="padding:20px 32px 36px;">
       <p style="margin:0;font-size:16px;line-height:1.75;color:#999999;">
-        Your QR ordering dashboard on QR-Wegn is ready and waiting for you.
+        Your booking dashboard on WEGN Appointments is ready and waiting for you.
         Click the button below to log in &mdash; no password needed, this link signs you straight in.
       </p>
     </td>
@@ -101,10 +101,10 @@ function html(businessName: string, magicLink: string): string {
           What&rsquo;s waiting for you
         </div>
         ${[
-          ["Tables & QR codes",   "Add your tables and download a QR code for each one"],
-          ["Menu builder",        "Create categories, add items, set prices — all live instantly"],
-          ["Live orders",         "Watch orders come in and manage them in real time"],
-          ["Staff access",        "Set a PIN so kitchen staff can view the order queue"],
+          ["Chairs & QR codes",   "Add your chairs and download a QR code for each one"],
+          ["Service menu",        "Add your services, set durations and prices — all live instantly"],
+          ["Live bookings",       "Watch bookings come in and manage them in real time"],
+          ["Staff access",        "Set a PIN so your staff can view the booking queue"],
         ].map(([title, sub]) => `
         <table cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:14px;">
           <tr>
@@ -129,7 +129,7 @@ function html(businessName: string, magicLink: string): string {
         <a href="mailto:fitpaperwork25@gmail.com" style="color:#E8C547;text-decoration:none;">fitpaperwork25@gmail.com</a>
       </p>
       <p style="margin:0;font-size:11px;color:#444444;letter-spacing:1px;">
-        &copy; 2026 QR-Wegn &nbsp;&middot;&nbsp; SCAN &middot; ORDER &middot; SERVE
+        &copy; 2026 WEGN Appointments &nbsp;&middot;&nbsp; SCAN &middot; BOOK &middot; SHOW UP
       </p>
     </td>
   </tr>
@@ -167,9 +167,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!magicLink) return res.status(500).json({ error: "Failed to generate magic link" });
 
   const { error: sendErr } = await resend.emails.send({
-    from: "QR-Wegn <onboarding@resend.dev>",
+    from: "WEGN Appointments <onboarding@resend.dev>",
     to: email,
-    subject: `Your QR-Wegn dashboard is ready, ${businessName}`,
+    subject: `Your WEGN Appointments dashboard is ready, ${businessName}`,
     html: html(businessName, magicLink),
   });
 

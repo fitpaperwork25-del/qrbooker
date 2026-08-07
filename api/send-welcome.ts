@@ -2,7 +2,7 @@ import { Resend } from "resend";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const APP_URL = "https://qrwegn.com";
+const APP_URL = "https://qrbooker.app";
 
 function html(businessName: string, slug: string): string {
   const scanUrl      = `${APP_URL}/scan/${slug}`;
@@ -22,7 +22,7 @@ function html(businessName: string, slug: string): string {
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Welcome to QR-Wegn</title>
+  <title>Welcome to WEGN Appointments</title>
 </head>
 <body style="margin:0;padding:0;background:#080808;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#080808;">
@@ -61,8 +61,8 @@ function html(businessName: string, slug: string): string {
       </table>
 
       <!-- Wordmark -->
-      <div style="font-size:28px;font-weight:900;color:#F0EDE8;letter-spacing:2px;line-height:1;">QR-Wegn</div>
-      <div style="margin-top:8px;font-size:10px;font-weight:600;color:#E8C547;letter-spacing:5px;">SCAN &middot; ORDER &middot; SERVE</div>
+      <div style="font-size:28px;font-weight:900;color:#F0EDE8;letter-spacing:2px;line-height:1;">WEGN Appointments</div>
+      <div style="margin-top:8px;font-size:10px;font-weight:600;color:#E8C547;letter-spacing:5px;">SCAN &middot; BOOK &middot; SHOW UP</div>
     </td>
   </tr>
 
@@ -79,8 +79,8 @@ function html(businessName: string, slug: string): string {
   <tr>
     <td style="padding:20px 32px 36px;">
       <p style="margin:0;font-size:16px;line-height:1.75;color:#999999;">
-        Your QR ordering platform is ready. Customers can now scan a table QR code,
-        browse your menu, and place orders in seconds &mdash; no app, no friction.
+        Your QR booking platform is ready. Customers can now scan your chair's QR code,
+        browse your services, and book an appointment in seconds &mdash; no app, no friction.
         Everything you need to go live is below.
       </p>
     </td>
@@ -103,7 +103,7 @@ function html(businessName: string, slug: string): string {
             <td>
               <div style="font-size:12px;font-weight:700;color:#F0EDE8;margin-bottom:3px;">Customer Scan Page</div>
               <a href="${scanUrl}" style="font-size:13px;color:#E8C547;text-decoration:none;font-family:monospace;">${scanUrl}</a>
-              <div style="font-size:11px;color:#666666;margin-top:2px;">Print QR codes for each table from your dashboard</div>
+              <div style="font-size:11px;color:#666666;margin-top:2px;">Print a QR code for each chair from your dashboard</div>
             </td>
           </tr>
         </table>
@@ -115,9 +115,9 @@ function html(businessName: string, slug: string): string {
               <div style="width:8px;height:8px;background:#E8C547;border-radius:50%;margin-top:5px;"></div>
             </td>
             <td>
-              <div style="font-size:12px;font-weight:700;color:#F0EDE8;margin-bottom:3px;">Staff Kitchen View</div>
+              <div style="font-size:12px;font-weight:700;color:#F0EDE8;margin-bottom:3px;">Staff View</div>
               <a href="${staffUrl}" style="font-size:13px;color:#E8C547;text-decoration:none;font-family:monospace;">${staffUrl}</a>
-              <div style="font-size:11px;color:#666666;margin-top:2px;">Restaurant ID: <strong style="color:#F0EDE8;">${slug}</strong> &nbsp;&middot;&nbsp; Set your staff PIN in the dashboard</div>
+              <div style="font-size:11px;color:#666666;margin-top:2px;">Business ID: <strong style="color:#F0EDE8;">${slug}</strong> &nbsp;&middot;&nbsp; Set your staff PIN in the dashboard</div>
             </td>
           </tr>
         </table>
@@ -131,7 +131,7 @@ function html(businessName: string, slug: string): string {
             <td>
               <div style="font-size:12px;font-weight:700;color:#F0EDE8;margin-bottom:3px;">Owner Dashboard</div>
               <a href="${dashboardUrl}" style="font-size:13px;color:#E8C547;text-decoration:none;font-family:monospace;">${dashboardUrl}</a>
-              <div style="font-size:11px;color:#666666;margin-top:2px;">Manage tables, menu, orders, and financials</div>
+              <div style="font-size:11px;color:#666666;margin-top:2px;">Manage chairs, services, bookings, and financials</div>
             </td>
           </tr>
         </table>
@@ -153,8 +153,8 @@ function html(businessName: string, slug: string): string {
             <div style="width:26px;height:26px;background:#E8C547;border-radius:50%;display:block;text-align:center;line-height:26px;font-size:13px;font-weight:900;color:#080808;">1</div>
           </td>
           <td style="vertical-align:top;">
-            <div style="font-size:15px;font-weight:700;color:#F0EDE8;margin-bottom:4px;">Set up your tables and menu</div>
-            <div style="font-size:13px;color:#888888;line-height:1.6;">Log in to your dashboard, add your tables under the Tables tab, then build your menu with categories and items.</div>
+            <div style="font-size:15px;font-weight:700;color:#F0EDE8;margin-bottom:4px;">Set up your chairs and services</div>
+            <div style="font-size:13px;color:#888888;line-height:1.6;">Log in to your dashboard, add your chairs, then build your service menu with categories and prices.</div>
           </td>
         </tr>
       </table>
@@ -167,7 +167,7 @@ function html(businessName: string, slug: string): string {
           </td>
           <td style="vertical-align:top;">
             <div style="font-size:15px;font-weight:700;color:#F0EDE8;margin-bottom:4px;">Print your QR codes</div>
-            <div style="font-size:13px;color:#888888;line-height:1.6;">Download a QR code for each table from the Tables tab. Print and place them on each table &mdash; customers scan to order instantly.</div>
+            <div style="font-size:13px;color:#888888;line-height:1.6;">Download a QR code for each chair from your dashboard. Print and place them at each chair &mdash; customers scan to book instantly.</div>
           </td>
         </tr>
       </table>
@@ -180,7 +180,7 @@ function html(businessName: string, slug: string): string {
           </td>
           <td style="vertical-align:top;">
             <div style="font-size:15px;font-weight:700;color:#F0EDE8;margin-bottom:4px;">Brief your staff</div>
-            <div style="font-size:13px;color:#888888;line-height:1.6;">Set a staff PIN in your dashboard, then share the staff login link. Kitchen staff use the live order view to manage tickets.</div>
+            <div style="font-size:13px;color:#888888;line-height:1.6;">Set a staff PIN in your dashboard, then share the staff login link. Staff use the live booking view to manage the queue.</div>
           </td>
         </tr>
       </table>
@@ -205,7 +205,7 @@ function html(businessName: string, slug: string): string {
         <a href="mailto:fitpaperwork25@gmail.com" style="color:#E8C547;text-decoration:none;">fitpaperwork25@gmail.com</a>
       </p>
       <p style="margin:0;font-size:11px;color:#444444;letter-spacing:1px;">
-        &copy; 2026 QR-Wegn &nbsp;&middot;&nbsp; SCAN &middot; ORDER &middot; SERVE
+        &copy; 2026 WEGN Appointments &nbsp;&middot;&nbsp; SCAN &middot; BOOK &middot; SHOW UP
       </p>
     </td>
   </tr>
@@ -232,7 +232,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const { error } = await resend.emails.send({
-      from: "QR-Wegn <onboarding@resend.dev>",
+      from: "WEGN Appointments <onboarding@resend.dev>",
       to:   email,
       subject: `You're live, ${businessName} 🚀`,
       html: html(businessName, slug),

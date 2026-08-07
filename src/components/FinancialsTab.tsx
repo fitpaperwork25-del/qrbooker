@@ -74,7 +74,7 @@ function pdfDoc(title: string, bizName: string, rows: string[][], headers: strin
   doc.setTextColor(232, 197, 71);
   doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
-  doc.text("QRBooker", 30, 26);
+  doc.text("WEGN Appointments", 30, 26);
   doc.setTextColor(240, 237, 232);
   doc.setFontSize(11);
   doc.text(bizName, 110, 26);
